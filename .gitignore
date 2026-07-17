@@ -1,0 +1,10 @@
+bin/
+obj/
+TestResults/
+coverage.*.xml
+artifacts/
+work/
+.vs/
+*.user
+*.suo
+src/CodexHpBar/Assets/cat-pig-transparent.png

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CodexHpBar.Core/CodexHpBar.Core.csproj" />
+    <Project Path="src/CodexHpBar/CodexHpBar.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CodexHpBar.Tests/CodexHpBar.Tests.csproj" />
+  </Folder>
+</Solution>

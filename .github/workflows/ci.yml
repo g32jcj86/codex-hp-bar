@@ -1,0 +1,34 @@
+name: 建置與驗證
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: 還原套件
+        run: dotnet restore CodexHpBar.slnx
+      - name: 執行完整驗證
+        shell: pwsh
+        run: .\scripts\validate.ps1
+      - name: 建立可攜版
+        shell: pwsh
+        run: .\scripts\build-release.ps1 -Version 0.1.0
+      - name: 上傳成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodexHpBar-win-x64
+          path: artifacts/
+          if-no-files-found: error
