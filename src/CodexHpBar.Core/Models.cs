@@ -45,13 +45,16 @@ public sealed record OverlayBounds(int Left, int Top, int Width, int Height);
 
 public static class TaskbarGeometry
 {
+    private const int SecondaryStatusAreaWidth = 120;
+
     public static OverlayBounds Calculate(TaskbarPlacement taskbar)
     {
         var scale = taskbar.Scale;
         var width = (int)Math.Round(150 * scale);
         var height = (int)Math.Round(38 * scale);
         var gap = (int)Math.Round(6 * scale);
-        var left = taskbar.HasTray ? taskbar.Left - width - gap : taskbar.Right - width - gap;
+        var statusArea = taskbar.HasTray ? 0 : (int)Math.Round(SecondaryStatusAreaWidth * scale);
+        var left = taskbar.HasTray ? taskbar.Left - width - gap : taskbar.Right - width - gap - statusArea;
         var top = taskbar.Top + Math.Max(0, (taskbar.Bottom - taskbar.Top - height) / 2);
         return new OverlayBounds(left, top, width, height);
     }

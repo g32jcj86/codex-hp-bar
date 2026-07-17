@@ -17,6 +17,16 @@ public sealed class QuotaTests
     }
 
     [Theory]
+    [InlineData(96, 1644)]
+    [InlineData(120, 1574)]
+    [InlineData(144, 1506)]
+    public void SecondaryTaskbarReservesClockAndStatusArea(int dpi, int expectedLeft)
+    {
+        var bounds = TaskbarGeometry.Calculate(new TaskbarPlacement(0, 0, 1040, 1920, 1080, dpi, false));
+        Assert.Equal(expectedLeft, bounds.Left);
+    }
+
+    [Theory]
     [InlineData(0, 100)]
     [InlineData(17, 83)]
     [InlineData(99.6, 0)]
