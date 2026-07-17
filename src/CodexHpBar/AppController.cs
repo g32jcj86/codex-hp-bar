@@ -39,8 +39,8 @@ public sealed class AppController : IAsyncDisposable
         _settingsService = settingsService;
         _settings = settings;
         _demo = demo;
-        _watchTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await WatchAsync(), Application.Current.Dispatcher);
-        _syncTimer = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, async (_, _) => await RefreshAsync(), Application.Current.Dispatcher);
+        _watchTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await RunGuardedAsync(WatchAsync), Application.Current.Dispatcher);
+        _syncTimer = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, async (_, _) => await RunGuardedAsync(RefreshAsync), Application.Current.Dispatcher);
         _memoryTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.ApplicationIdle, (_, _) => MemoryTrimmer.Trim(), Application.Current.Dispatcher);
         _zOrderTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Send, (_, _) =>
         {
@@ -151,6 +151,21 @@ public sealed class AppController : IAsyncDisposable
         finally
         {
             _refreshing = false;
+        }
+    }
+
+    private async Task RunGuardedAsync(Func<Task> operation)
+    {
+        try
+        {
+            await operation();
+        }
+        catch (Exception exception)
+        {
+            _snapshot = _snapshot.OrderedWindows.Count > 0
+                ? _snapshot with { IsStale = true, Error = exception.Message }
+                : QuotaSnapshot.Offline(exception.Message);
+            foreach (var window in _windows) window.UpdateSnapshot(_snapshot);
         }
     }
 

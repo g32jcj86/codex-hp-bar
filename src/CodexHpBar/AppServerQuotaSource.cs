@@ -32,7 +32,11 @@ public sealed class AppServerQuotaSource : IQuotaSource
             SnapshotChanged?.Invoke(this, snapshot);
             return snapshot;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
         {
             var stale = _current.OrderedWindows.Count > 0 && DateTimeOffset.UtcNow - _current.UpdatedAt <= TimeSpan.FromMinutes(5)
                 ? _current with { IsStale = true, Error = exception.Message }

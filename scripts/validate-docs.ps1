@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $missing = [Collections.Generic.List[string]]::new()
-Get-ChildItem -LiteralPath $root -Filter '*.md' -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj|artifacts)\\' } | ForEach-Object {
+Get-ChildItem -LiteralPath $root -Filter '*.md' -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj|artifacts|work)\\' } | ForEach-Object {
     $file = $_
     $content = Get-Content -LiteralPath $file.FullName -Raw
     [regex]::Matches($content, '!?(?:\[[^\]]*\])\(([^)#]+)(?:#[^)]+)?\)') | ForEach-Object {
@@ -16,7 +16,7 @@ if ($missing.Count -gt 0) { throw "Markdown 連結缺少目標：`n$($missing -j
 
 $simplifiedTerms = @('软件','设置','启动项','链接失效','用户界面','后台运行')
 $markdownFiles = Get-ChildItem -LiteralPath $root -Filter '*.md' -File -Recurse |
-    Where-Object { $_.FullName -notmatch '\\(bin|obj|artifacts)\\' }
+    Where-Object { $_.FullName -notmatch '\\(bin|obj|artifacts|work)\\' }
 foreach ($term in $simplifiedTerms) {
     $hits = $markdownFiles | Select-String -SimpleMatch $term
     if ($hits) { throw "發現簡體中文用詞 '$term'：`n$($hits -join "`n")" }
