@@ -24,6 +24,8 @@ public sealed class AppController : IAsyncDisposable
     private readonly DispatcherTimer _watchTimer;
     private readonly DispatcherTimer _syncTimer;
     private readonly DispatcherTimer _memoryTimer;
+    private readonly DispatcherTimer _zOrderTimer;
+    private readonly ForegroundWatcher _foregroundWatcher = new();
     private readonly List<MainWindow> _windows = [];
     private readonly DemoMode _demo;
     private AppSettings _settings;
@@ -40,6 +42,14 @@ public sealed class AppController : IAsyncDisposable
         _watchTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await WatchAsync(), Application.Current.Dispatcher);
         _syncTimer = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, async (_, _) => await RefreshAsync(), Application.Current.Dispatcher);
         _memoryTimer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.ApplicationIdle, (_, _) => MemoryTrimmer.Trim(), Application.Current.Dispatcher);
+        _zOrderTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Send, (_, _) =>
+        {
+            foreach (var window in _windows) window.BringAboveTaskbar();
+        }, Application.Current.Dispatcher);
+        _foregroundWatcher.ForegroundChanged += (_, _) => Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+            foreach (var window in _windows) window.BringAboveTaskbar();
+        }, DispatcherPriority.Send);
     }
 
     public async Task StartAsync()
@@ -49,12 +59,14 @@ public sealed class AppController : IAsyncDisposable
             _snapshot = CreateDemo(_demo);
             EnsureWindows();
             _memoryTimer.Start();
+            _zOrderTimer.Start();
             _ = Task.Delay(TimeSpan.FromSeconds(2)).ContinueWith(_ => Application.Current.Dispatcher.Invoke(MemoryTrimmer.Trim));
             return;
         }
 
         _watchTimer.Start();
         _memoryTimer.Start();
+        _zOrderTimer.Start();
         await WatchAsync();
     }
 
@@ -85,7 +97,7 @@ public sealed class AppController : IAsyncDisposable
         {
             var window = new MainWindow();
             window.RefreshRequested += async (_, _) => await RefreshAsync();
-            window.SettingsRequested += (_, _) => ShowSettings();
+            window.SettingsRequested += (_, _) => ShowSettings(window);
             window.ExitRequested += (_, _) => Application.Current.Shutdown();
             _windows.Add(window);
             window.Show();
@@ -166,9 +178,21 @@ public sealed class AppController : IAsyncDisposable
         return source;
     }
 
-    private void ShowSettings()
+    private void ShowSettings(MainWindow owner)
     {
-        var dialog = new OnboardingWindow(_settings) { Title = "Codex HP Bar 設定" };
+        var dialog = new OnboardingWindow(_settings)
+        {
+            Title = "Codex HP Bar 設定",
+            Owner = owner,
+            Topmost = true,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        dialog.Loaded += (_, _) =>
+        {
+            dialog.Activate();
+            dialog.Focus();
+        };
         if (dialog.ShowDialog() != true) return;
         _settings = dialog.Settings.Normalize();
         _settingsService.Save(_settings);
@@ -192,9 +216,43 @@ public sealed class AppController : IAsyncDisposable
         _watchTimer.Stop();
         _syncTimer.Stop();
         _memoryTimer.Stop();
+        _zOrderTimer.Stop();
+        _foregroundWatcher.Dispose();
         foreach (var window in _windows) window.Close();
         if (_quotaSource is not null) await _quotaSource.DisposeAsync();
     }
+}
+
+internal sealed class ForegroundWatcher : IDisposable
+{
+    private const uint EventSystemForeground = 0x0003;
+    private const uint WineventOutofcontext = 0x0000;
+    private const uint WineventSkipownprocess = 0x0002;
+    private readonly WinEventDelegate _callback;
+    private readonly nint _hook;
+
+    public ForegroundWatcher()
+    {
+        _callback = (_, _, _, _, _, _, _) => ForegroundChanged?.Invoke(this, EventArgs.Empty);
+        _hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, 0, _callback, 0, 0,
+            WineventOutofcontext | WineventSkipownprocess);
+    }
+
+    public event EventHandler? ForegroundChanged;
+
+    public void Dispose()
+    {
+        if (_hook != 0) _ = UnhookWinEvent(_hook);
+    }
+
+    private delegate void WinEventDelegate(nint hook, uint eventType, nint window, int objectId, int childId, uint threadId, uint eventTime);
+
+    [DllImport("user32.dll")]
+    private static extern nint SetWinEventHook(uint eventMin, uint eventMax, nint module, WinEventDelegate callback,
+        uint processId, uint threadId, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(nint hook);
 }
 
 internal static class MemoryTrimmer

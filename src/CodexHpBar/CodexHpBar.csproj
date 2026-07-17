@@ -12,12 +12,24 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>CodexHpBar</AssemblyName>
     <RootNamespace>CodexHpBar</RootNamespace>
+    <AssemblyTitle>Codex HP Bar</AssemblyTitle>
+    <Product>Codex 像素貓咪豬 HP 額度監測器</Product>
+    <Company>g32jcj86</Company>
+    <Authors>g32jcj86</Authors>
+    <Description>在 Windows 工具列顯示 Codex 剩餘額度的像素貓咪豬 HP 血條</Description>
+    <Copyright>Copyright © 2026 g32jcj86</Copyright>
+    <RepositoryUrl>https://github.com/g32jcj86/codex-hp-bar</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/g32jcj86/codex-hp-bar</PackageProjectUrl>
+    <NeutralLanguage>zh-TW</NeutralLanguage>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\cat-pig.ico</ApplicationIcon>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\cat-pig.png" Condition="Exists('Assets\cat-pig.png')" />
+    <Resource Include="Assets\cat-pig.ico" Condition="Exists('Assets\cat-pig.ico')" />
   </ItemGroup>
 
 </Project>

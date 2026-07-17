@@ -1,8 +1,9 @@
 <Window x:Class="CodexHpBar.OnboardingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Codex HP Bar 首次啟用" Width="460" Height="330"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="#FFF9FB">
+        Title="Codex HP Bar 首次啟用" Width="460" Height="410"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="#FFF9FB"
+        Icon="Assets/cat-pig.ico">
     <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
@@ -20,8 +21,11 @@
         <StackPanel Grid.Row="2">
             <CheckBox x:Name="BackgroundBox" Content="允許 Codex HP Bar 在背景待命" FontSize="15" Margin="0,5" Checked="BackgroundChanged" Unchecked="BackgroundChanged"/>
             <TextBlock Text="Codex 關閉時隱藏，繼續等待下次開啟。" Margin="24,0,0,10" Foreground="#776A80"/>
-            <CheckBox x:Name="StartupBox" Content="登入 Windows 時自動啟動" FontSize="15" Margin="0,5" Checked="StartupChecked"/>
+            <CheckBox x:Name="StartupBox" Content="登入 Windows 時自動啟動" FontSize="15" Margin="0,5" Checked="StartupChecked" Unchecked="StartupUnchecked"/>
             <TextBlock Text="會建立使用者 Startup 捷徑，不需要系統管理員權限。" Margin="24,0,0,0" Foreground="#776A80"/>
+            <Border Background="#EEF9F7" CornerRadius="7" Padding="10,7" Margin="24,12,0,0">
+                <TextBlock x:Name="StartupStatusText" Foreground="#28645D" FontWeight="SemiBold"/>
+            </Border>
         </StackPanel>
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="取消" Width="82" Margin="0,0,10,0" Click="CancelClick"/>

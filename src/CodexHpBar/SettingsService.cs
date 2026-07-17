@@ -60,13 +60,13 @@ public static class StartupManager
         dynamic shortcut = shell.CreateShortcut(ShortcutPath);
         shortcut.TargetPath = ExecutablePath;
         shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(ExecutablePath);
-        shortcut.Description = "Codex 像素貓咪豬 HP 額度監測器";
+        shortcut.Description = "Codex 像素貓咪豬 HP 額度監測器 — github.com/g32jcj86/codex-hp-bar";
         shortcut.Save();
     }
 
     public static void RepairIfNeeded(bool enabled)
     {
-        if (enabled && !File.Exists(ShortcutPath)) Apply(true);
+        if (enabled) Apply(true);
         if (!enabled && File.Exists(ShortcutPath)) Apply(false);
     }
 }

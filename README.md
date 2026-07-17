@@ -52,7 +52,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 
 - **立即更新**：立刻重新讀取額度。
 - **設定**：調整背景待命與開機啟動。
-- **結束**：關閉所有螢幕上的血條與背景程序。
+- **關閉監測器**：關閉所有螢幕上的血條與背景程序。
 
 若要重新顯示首次啟用畫面：
 
@@ -91,6 +91,8 @@ Get-Content .\SHA256SUMS.txt
 
 安全問題請參閱 [安全政策](SECURITY.md)。
 
+EXE 版本資訊包含作者 `g32jcj86` 與專案網址 `https://github.com/g32jcj86/codex-hp-bar`。本版本未使用付費 Authenticode 程式碼簽章，因此 Windows 工作管理員或 SmartScreen 的「發行者」仍可能顯示空白或未知；請以 GitHub Release 的 SHA-256 清單驗證檔案。
+
 ## 選用安裝與移除
 
 可攜版不需要安裝。若想固定放入本機程式目錄：
@@ -119,6 +121,7 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 - [詳細使用指南](docs/使用指南.md)
 - [疑難排解](docs/疑難排解.md)
 - [開發指南](docs/開發指南.md)
+- [Visual Studio 本機編譯指南](docs/Visual%20Studio%20本機編譯指南.md)
 - [驗證摘要](docs/驗證摘要.md)
 - [版本紀錄](CHANGELOG.md)
 - [貢獻指南](CONTRIBUTING.md)

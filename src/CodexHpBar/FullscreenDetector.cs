@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Diagnostics;
 using CodexHpBar.Core;
 
 namespace CodexHpBar;
@@ -10,6 +11,19 @@ public static class FullscreenDetector
     {
         var foreground = GetForegroundWindow();
         if (foreground == 0 || foreground == taskbar.Handle || !GetWindowRect(foreground, out var window)) return false;
+        _ = GetWindowThreadProcessId(foreground, out var processId);
+        try
+        {
+            using var process = processId == 0 ? null : Process.GetProcessById((int)processId);
+            if (process?.ProcessName.Equals("LINE", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return false;
+            }
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
         var className = new StringBuilder(128);
         _ = GetClassName(foreground, className, className.Capacity);
         if (className.ToString() is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Progman" or "WorkerW") return false;
@@ -28,4 +42,5 @@ public static class FullscreenDetector
     [DllImport("user32.dll")] private static extern nint MonitorFromWindow(nint handle, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint handle, StringBuilder name, int maximum);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint handle, out uint processId);
 }
