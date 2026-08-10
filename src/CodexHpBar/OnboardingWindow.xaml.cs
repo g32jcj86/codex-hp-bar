@@ -134,7 +134,7 @@ public partial class OnboardingWindow : Window
             MascotAssetMode.BuiltInMushroom => "內建圖片會以像素風格顯示，作業系統停用動畫時仍保持靜態。",
             MascotAssetMode.StaticImage => "靜態圖片會固定顯示第一張畫面；建議使用帶透明背景的 PNG。",
             MascotAssetMode.AnimatedGif => "GIF 依檔案內建的影格時間循環播放；若 GIF 只有一張影格，就當作靜態圖片。",
-            MascotAssetMode.SpriteSheet4x4 => "規則：圖片必須無間距等分為 4 欄×4 列，依左至右、上至下播放 16 影格，播完回到第一格循環。",
+            MascotAssetMode.SpriteSheet4x4 => "規則：圖片必須無間距等分為 4 欄×4 列，依左至右、上至下播放 16 影格，播完回到第一格循環；透明背景會依共同底線自動對齊，避免留白差異造成上下跳動。",
             _ => string.Empty
         };
     }

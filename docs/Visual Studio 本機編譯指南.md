@@ -107,7 +107,7 @@ pwsh -NoProfile -File .\scripts\validate.ps1
 請先關閉正在執行的 Codex HP Bar，避免 Windows 鎖定舊 EXE。從儲存庫根目錄執行：
 
 ```powershell
-pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.2.1
+pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.2.2
 ```
 
 腳本固定使用以下設定：
@@ -121,8 +121,8 @@ pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.2.1
 
 成品會出現在 `artifacts`：
 
-- `CodexHpBar-v0.2.1-win-x64.exe`。
-- `CodexHpBar-v0.2.1-win-x64-portable.zip`。
+- `CodexHpBar-v0.2.2-win-x64.exe`。
+- `CodexHpBar-v0.2.2-win-x64-portable.zip`。
 - `SHA256SUMS.txt`。
 
 ## 八、驗證本機 Release
@@ -130,20 +130,20 @@ pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.2.1
 先檢查單檔程式能否讀取本機 Codex app-server：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.2.1-win-x64.exe --self-test
+.\artifacts\CodexHpBar-v0.2.2-win-x64.exe --self-test
 $LASTEXITCODE
 ```
 
 結束碼 `0` 表示通過。接著測試畫面：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.2.1-win-x64.exe --demo dual
+.\artifacts\CodexHpBar-v0.2.2-win-x64.exe --demo dual
 ```
 
 關閉 demo 後，以不帶參數的正式模式啟動：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.2.1-win-x64.exe
+.\artifacts\CodexHpBar-v0.2.2-win-x64.exe
 ```
 
 ## 九、開機啟動行為

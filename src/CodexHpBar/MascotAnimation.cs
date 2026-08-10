@@ -6,7 +6,7 @@ using CodexHpBar.Core;
 
 namespace CodexHpBar;
 
-internal sealed record MascotFrame(ImageSource Image, TimeSpan Duration);
+internal sealed record MascotFrame(ImageSource Image, TimeSpan Duration, double VerticalOffsetRatio = 0);
 
 internal sealed class MascotAnimation
 {
@@ -21,6 +21,8 @@ internal sealed class MascotAnimation
     }
 
     public ImageSource? CurrentImage => _frames.Count == 0 ? null : _frames[_frameIndex].Image;
+
+    public double CurrentVerticalOffsetRatio => _frames.Count == 0 ? 0 : _frames[_frameIndex].VerticalOffsetRatio;
 
     public bool IsAnimated => _frames.Count > 1;
 
@@ -157,7 +159,7 @@ internal sealed class MascotAnimation
         var frameWidth = sheet.PixelWidth / 4;
         var frameHeight = sheet.PixelHeight / 4;
         var duration = TimeSpan.FromSeconds(1d / Math.Clamp(framesPerSecond, 1, 30));
-        var frames = new List<MascotFrame>(16);
+        var sourceFrames = new List<(BitmapSource Frame, int VisibleBottom)>(16);
         for (var row = 0; row < 4; row++)
         {
             for (var column = 0; column < 4; column++)
@@ -168,11 +170,41 @@ internal sealed class MascotAnimation
                     frameWidth,
                     frameHeight));
                 frame.Freeze();
-                frames.Add(new MascotFrame(frame, duration));
+                sourceFrames.Add((frame, FindVisibleBottom(frame)));
             }
         }
 
+        var baseline = sourceFrames.Max(item => item.VisibleBottom);
+        var frames = new List<MascotFrame>(16);
+        foreach (var item in sourceFrames)
+        {
+            var verticalOffsetRatio = baseline >= 0 && item.VisibleBottom >= 0
+                ? (baseline - item.VisibleBottom) / (double)frameHeight
+                : 0;
+            frames.Add(new MascotFrame(item.Frame, duration, verticalOffsetRatio));
+        }
+
         return frames;
+    }
+
+    private static int FindVisibleBottom(BitmapSource frame)
+    {
+        var converted = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+        converted.Freeze();
+        var stride = converted.PixelWidth * 4;
+        var pixels = new byte[stride * converted.PixelHeight];
+        converted.CopyPixels(pixels, stride, 0);
+
+        var visibleBottom = -1;
+        for (var y = 0; y < converted.PixelHeight; y++)
+        {
+            for (var x = 0; x < converted.PixelWidth; x++)
+            {
+                if (pixels[y * stride + x * 4 + 3] >= 16) visibleBottom = y;
+            }
+        }
+
+        return visibleBottom;
     }
 
     private TimeSpan ReadGifDuration(BitmapFrame frame)

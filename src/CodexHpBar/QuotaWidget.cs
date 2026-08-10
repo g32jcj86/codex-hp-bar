@@ -78,10 +78,11 @@ public sealed class QuotaWidget : FrameworkElement
         var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
             ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
             : 0;
+        var frameOffset = _mascotAnimation.CurrentVerticalOffsetRatio * 30;
 
         if (_mascotAnimation.CurrentImage is { } mascot)
         {
-            dc.DrawImage(mascot, new Rect(2, 3 + bob, 30, 30));
+            dc.DrawImage(mascot, new Rect(2, 3 + bob + frameOffset, 30, 30));
         }
         else
         {
