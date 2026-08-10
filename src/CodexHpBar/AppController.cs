@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using CodexHpBar.Core;
@@ -37,7 +37,7 @@ public sealed class AppController : IAsyncDisposable
     public AppController(SettingsService settingsService, AppSettings settings, DemoMode demo)
     {
         _settingsService = settingsService;
-        _settings = settings;
+        _settings = settings.Normalize();
         _demo = demo;
         _watchTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await RunGuardedAsync(WatchAsync), Application.Current.Dispatcher);
         _syncTimer = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, async (_, _) => await RunGuardedAsync(RefreshAsync), Application.Current.Dispatcher);
@@ -95,7 +95,7 @@ public sealed class AppController : IAsyncDisposable
         var taskbars = _locator.LocateAll();
         while (_windows.Count < taskbars.Count)
         {
-            var window = new MainWindow();
+            var window = new MainWindow(_settings.Mascot);
             window.RefreshRequested += async (_, _) => await RefreshAsync();
             window.SettingsRequested += (_, _) => ShowSettings(window);
             window.ExitRequested += (_, _) => Application.Current.Shutdown();
@@ -212,6 +212,7 @@ public sealed class AppController : IAsyncDisposable
         _settings = dialog.Settings.Normalize();
         _settingsService.Save(_settings);
         StartupManager.Apply(_settings.StartWithWindows);
+        foreach (var window in _windows) window.UpdateMascot(_settings.Mascot!);
     }
 
     private static QuotaSnapshot CreateDemo(DemoMode mode)

@@ -1,4 +1,5 @@
-using System.Text.Json;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.IO;
 using CodexHpBar.Core;
 
@@ -6,7 +7,11 @@ namespace CodexHpBar;
 
 public sealed class SettingsService
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
     private readonly string _directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexHpBar");
     private string PathName => Path.Combine(_directory, "settings.json");
 
@@ -60,7 +65,7 @@ public static class StartupManager
         dynamic shortcut = shell.CreateShortcut(ShortcutPath);
         shortcut.TargetPath = ExecutablePath;
         shortcut.WorkingDirectory = System.IO.Path.GetDirectoryName(ExecutablePath);
-        shortcut.Description = "Codex 像素貓咪豬 HP 額度監測器 — github.com/g32jcj86/codex-hp-bar";
+        shortcut.Description = "Codex 菇菇寶貝 HP 額度監測器 — github.com/g32jcj86/codex-hp-bar";
         shortcut.Save();
     }
 

@@ -1,6 +1,6 @@
-# Codex 像素貓咪豬 HP 額度監測器
+﻿# Codex 菇菇寶貝 HP 額度監測器
 
-Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Codex 剩餘額度顯示成遊戲 HP 血條，並由一隻低調活動的像素貓咪豬陪伴工作。
+Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Codex 剩餘額度顯示成遊戲 HP 血條，並由菇菇寶貝陪伴工作。
 
 ![工具列示意](docs/media/taskbar-demo.png)
 
@@ -8,6 +8,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 
 - 透過 Codex 官方本機 app-server 讀取額度，不使用畫面辨識，也不讀取登入權杖。
 - 同時支援短期與每週額度；只有一種限制時會自動切換成單一加粗血條。
+- 預設使用菇菇寶貝，也可隨時切換本機靜態圖片、GIF 動圖或 4×4 連續動畫圖片。
 - 自動顯示於所有 Windows 工具列，支援多螢幕與每螢幕 DPI。
 - Codex 桌面程式關閉時自動隱藏。
 - 可攜版自帶 .NET Runtime，解壓後直接執行，不需要安裝。
@@ -21,7 +22,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 
 ## 三步驟快速開始
 
-1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.1.0-win-x64-portable.zip`。
+1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.2.0-win-x64-portable.zip`。
 2. 解壓縮後執行 `CodexHpBar.exe`。
 3. 在首次啟用視窗選擇是否允許背景待命及 Windows 登入自動啟動，再按「套用並啟用」。
 
@@ -54,6 +55,19 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 - **設定**：調整背景待命與開機啟動。
 - **關閉監測器**：關閉所有螢幕上的血條與背景程序。
 
+### 更換角色圖片
+
+在設定視窗的「工具列角色圖片」選擇模式，套用後所有螢幕會立即更新：
+
+- **內建菇菇寶貝**：使用專案內建的透明 PNG。
+- **靜態圖片**：接受 PNG、JPG、BMP、ICO，固定顯示單張圖片。
+- **GIF 動圖**：接受 GIF，依 GIF 的影格延遲循環播放；只有一張影格時視為靜態圖。
+- **4×4 連續動畫圖片**：接受 PNG、JPG、BMP，必須無間距等分成 4 欄×4 列，共 16 格。
+
+4×4 圖片採遊戲常見的 sprite sheet 規則：影格尺寸必須完全相同，從左至右、由上至下編號 0–15，播完後回到第 0 格循環；播放速度可設定 1–30 FPS，預設 8 FPS。透明背景 PNG 最適合工具列顯示，圖片檔上限為 20 MB、最長邊不可超過 4096 像素。
+
+角色圖片設定會儲存在 `%LOCALAPPDATA%\CodexHpBar\settings.json`，外部圖片只記錄本機檔案路徑，不會上傳或執行檔案。
+
 若要重新顯示首次啟用畫面：
 
 ```powershell
@@ -76,7 +90,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 下載同一版本的 `SHA256SUMS.txt`，在 PowerShell 執行：
 
 ```powershell
-Get-FileHash .\CodexHpBar-v0.1.0-win-x64-portable.zip -Algorithm SHA256
+Get-FileHash .\CodexHpBar-v0.2.0-win-x64-portable.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -129,4 +143,4 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## 授權
 
-本專案使用 [MIT License](LICENSE)。像素貓咪豬為本專案使用 OpenAI 內建圖像生成工具製作的原創素材。
+本專案使用 [MIT License](LICENSE)。菇菇寶貝素材由使用者提供，僅由本機程式載入顯示。

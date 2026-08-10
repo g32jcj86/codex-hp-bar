@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -31,7 +31,7 @@ public sealed class QuotaWidget : FrameworkElement
     };
     private readonly DispatcherTimer _animationTimer;
     private readonly DateTimeOffset _animationStart = DateTimeOffset.UtcNow;
-    private static readonly ImageSource? Mascot = LoadMascot();
+    private readonly MascotAnimation _mascotAnimation = new();
     private QuotaSnapshot _snapshot = QuotaSnapshot.Offline();
 
     public QuotaWidget()
@@ -39,9 +39,23 @@ public sealed class QuotaWidget : FrameworkElement
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         _animationTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) =>
         {
-            if (SystemParameters.ClientAreaAnimation) InvalidateVisual();
+            if (SystemParameters.ClientAreaAnimation)
+            {
+                _mascotAnimation.Advance(DateTimeOffset.UtcNow);
+                InvalidateVisual();
+            }
+
+            UpdateAnimationTimer();
         }, Dispatcher);
+        UpdateAnimationTimer();
         _animationTimer.Start();
+    }
+
+    public void SetMascot(MascotSettings settings)
+    {
+        _mascotAnimation.Apply(settings);
+        UpdateAnimationTimer();
+        InvalidateVisual();
     }
 
     public QuotaSnapshot Snapshot
@@ -65,13 +79,13 @@ public sealed class QuotaWidget : FrameworkElement
             ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
             : 0;
 
-        if (Mascot is not null)
+        if (_mascotAnimation.CurrentImage is { } mascot)
         {
-            dc.DrawImage(Mascot, new Rect(2, 3 + bob, 30, 30));
+            dc.DrawImage(mascot, new Rect(2, 3 + bob, 30, 30));
         }
         else
         {
-            DrawMascot(dc, 2, 4 + bob);
+            DrawFallbackMushroom(dc, 2, 4 + bob);
         }
         var windows = Snapshot.OrderedWindows;
         if (windows.Count == 0)
@@ -158,39 +172,28 @@ public sealed class QuotaWidget : FrameworkElement
         return pen;
     }
 
-    private static void DrawMascot(DrawingContext dc, double x, double y)
+    private static void DrawFallbackMushroom(DrawingContext dc, double x, double y)
     {
-        var outline = new SolidColorBrush(Color.FromRgb(45, 35, 55));
-        var pink = new SolidColorBrush(Color.FromRgb(255, 158, 181));
-        var cream = new SolidColorBrush(Color.FromRgb(255, 230, 205));
-        var cyan = new SolidColorBrush(Color.FromRgb(73, 210, 204));
+        var outline = new SolidColorBrush(Color.FromRgb(78, 52, 30));
+        var orange = new SolidColorBrush(Color.FromRgb(244, 133, 24));
+        var cream = new SolidColorBrush(Color.FromRgb(255, 246, 221));
+        var brown = new SolidColorBrush(Color.FromRgb(151, 98, 55));
         const double p = 3;
         void Pixel(Brush brush, int px, int py, int w = 1, int h = 1) => dc.DrawRectangle(brush, null, new Rect(x + px * p, y + py * p, w * p, h * p));
 
-        Pixel(outline, 2, 0, 2, 2); Pixel(outline, 7, 0, 2, 2);
-        Pixel(pink, 3, 1, 5, 1); Pixel(outline, 1, 2, 9, 6);
-        Pixel(pink, 2, 2, 7, 5); Pixel(cream, 3, 5, 5, 2);
-        Pixel(outline, 3, 3); Pixel(outline, 7, 3);
-        Pixel(pink, 4, 5, 3, 1); Pixel(outline, 4, 5); Pixel(outline, 6, 5);
-        Pixel(cyan, 2, 7, 7, 1); Pixel(outline, 9, 6, 2, 1); Pixel(pink, 10, 5);
+        Pixel(outline, 1, 2, 9, 4); Pixel(orange, 2, 1, 7, 4);
+        Pixel(orange, 3, 0, 5, 1); Pixel(cream, 2, 5, 7, 5);
+        Pixel(outline, 2, 4, 7, 1); Pixel(outline, 3, 6); Pixel(outline, 7, 6);
+        Pixel(cream, 3, 7, 5, 2); Pixel(outline, 4, 8); Pixel(outline, 6, 8);
+        Pixel(brown, 1, 3); Pixel(brown, 8, 2); Pixel(brown, 5, 1);
     }
 
-    private static ImageSource? LoadMascot()
+    private void UpdateAnimationTimer()
     {
-        try
-        {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.UriSource = new Uri("pack://application:,,,/Assets/cat-pig.png", UriKind.Absolute);
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.EndInit();
-            image.Freeze();
-            return image;
-        }
-        catch
-        {
-            return null;
-        }
+        var minimum = TimeSpan.FromMilliseconds(20);
+        _animationTimer.Interval = _mascotAnimation.NextFrameDelay < minimum
+            ? minimum
+            : _mascotAnimation.NextFrameDelay;
     }
 }
 

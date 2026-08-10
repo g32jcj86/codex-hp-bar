@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $missing = [Collections.Generic.List[string]]::new()
 Get-ChildItem -LiteralPath $root -Filter '*.md' -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj|artifacts|work)\\' } | ForEach-Object {

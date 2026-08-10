@@ -1,4 +1,4 @@
-# Visual Studio 本機編譯指南
+﻿# Visual Studio 本機編譯指南
 
 本指南說明如何從一台尚未下載原始碼的 Windows 電腦開始，使用 Visual Studio 在本機編譯、測試及產生 Codex HP Bar 免安裝 Release。所有步驟都不需要系統管理員權限；安裝 Visual Studio 或工作負載時，Windows 仍可能要求授權。
 
@@ -107,7 +107,7 @@ pwsh -NoProfile -File .\scripts\validate.ps1
 請先關閉正在執行的 Codex HP Bar，避免 Windows 鎖定舊 EXE。從儲存庫根目錄執行：
 
 ```powershell
-pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.1.0
+pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.2.0
 ```
 
 腳本固定使用以下設定：
@@ -121,8 +121,8 @@ pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.1.0
 
 成品會出現在 `artifacts`：
 
-- `CodexHpBar-v0.1.0-win-x64.exe`。
-- `CodexHpBar-v0.1.0-win-x64-portable.zip`。
+- `CodexHpBar-v0.2.0-win-x64.exe`。
+- `CodexHpBar-v0.2.0-win-x64-portable.zip`。
 - `SHA256SUMS.txt`。
 
 ## 八、驗證本機 Release
@@ -130,20 +130,20 @@ pwsh -NoProfile -File .\scripts\build-release.ps1 -Version 0.1.0
 先檢查單檔程式能否讀取本機 Codex app-server：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.1.0-win-x64.exe --self-test
+.\artifacts\CodexHpBar-v0.2.0-win-x64.exe --self-test
 $LASTEXITCODE
 ```
 
 結束碼 `0` 表示通過。接著測試畫面：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.1.0-win-x64.exe --demo dual
+.\artifacts\CodexHpBar-v0.2.0-win-x64.exe --demo dual
 ```
 
 關閉 demo 後，以不帶參數的正式模式啟動：
 
 ```powershell
-.\artifacts\CodexHpBar-v0.1.0-win-x64.exe
+.\artifacts\CodexHpBar-v0.2.0-win-x64.exe
 ```
 
 ## 九、開機啟動行為

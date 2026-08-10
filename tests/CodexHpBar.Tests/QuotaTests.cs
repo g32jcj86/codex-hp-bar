@@ -1,4 +1,4 @@
-using CodexHpBar.Core;
+﻿using CodexHpBar.Core;
 
 namespace CodexHpBar.Tests;
 
@@ -95,6 +95,24 @@ public sealed class QuotaTests
         var normalized = new AppSettings(false, true).Normalize();
         Assert.True(normalized.BackgroundMode);
         Assert.True(normalized.StartWithWindows);
+        Assert.Equal(MascotAssetMode.BuiltInMushroom, normalized.Mascot!.Mode);
+    }
+
+    [Fact]
+    public void MascotSettings_NormalizeClearsPathForBuiltInAsset()
+    {
+        var normalized = new MascotSettings(MascotAssetMode.BuiltInMushroom, "C:\\temp\\ignored.png", 8).Normalize();
+        Assert.Null(normalized.FilePath);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(8, 8)]
+    [InlineData(60, 30)]
+    public void MascotSettings_NormalizeClampsSpriteSheetFrameRate(int input, int expected)
+    {
+        var normalized = new MascotSettings(MascotAssetMode.SpriteSheet4x4, "C:\\temp\\frames.png", input).Normalize();
+        Assert.Equal(expected, normalized.FramesPerSecond);
     }
 
     [Theory]

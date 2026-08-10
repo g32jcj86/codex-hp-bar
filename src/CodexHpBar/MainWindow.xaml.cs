@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -22,9 +22,10 @@ public partial class MainWindow : Window
     public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
 
-    public MainWindow()
+    public MainWindow(MascotSettings? mascot = null)
     {
         InitializeComponent();
+        if (mascot is not null) Widget.SetMascot(mascot);
         SourceInitialized += (_, _) => ApplyWindowStyles();
         PreviewMouseRightButtonUp += OnRightClick;
     }
@@ -34,6 +35,8 @@ public partial class MainWindow : Window
         Widget.Snapshot = snapshot;
         ToolTip = TooltipBuilder.Build(snapshot);
     }
+
+    public void UpdateMascot(MascotSettings settings) => Widget.SetMascot(settings);
 
     public void Place(TaskbarPlacement taskbar)
     {

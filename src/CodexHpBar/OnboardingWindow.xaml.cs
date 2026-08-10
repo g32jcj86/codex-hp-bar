@@ -1,5 +1,8 @@
+﻿using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using CodexHpBar.Core;
+using Microsoft.Win32;
 
 namespace CodexHpBar;
 
@@ -10,11 +13,14 @@ public partial class OnboardingWindow : Window
     public OnboardingWindow(AppSettings? current = null)
     {
         InitializeComponent();
-        if (current is not null)
-        {
-            BackgroundBox.IsChecked = current.BackgroundMode;
-            StartupBox.IsChecked = current.StartWithWindows;
-        }
+        var settings = (current ?? AppSettings.Default).Normalize();
+        var mascot = settings.Mascot!;
+        BackgroundBox.IsChecked = settings.BackgroundMode;
+        StartupBox.IsChecked = settings.StartWithWindows;
+        MascotModeBox.SelectedValue = mascot.Mode.ToString();
+        MascotPathBox.Text = mascot.FilePath ?? string.Empty;
+        FrameRateBox.Text = mascot.FramesPerSecond.ToString(CultureInfo.InvariantCulture);
+        UpdateMascotControls();
         UpdateStartupStatus();
     }
 
@@ -32,13 +38,93 @@ public partial class OnboardingWindow : Window
         UpdateStartupStatus();
     }
 
+    private void MascotModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (MascotModeBox is null) return;
+        UpdateMascotControls();
+    }
+
+    private void BrowseMascotClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            CheckFileExists = true,
+            Multiselect = false,
+            Filter = GetFileFilter(SelectedMascotMode())
+        };
+        if (dialog.ShowDialog(this) == true) MascotPathBox.Text = dialog.FileName;
+    }
+
     private void ApplyClick(object sender, RoutedEventArgs e)
     {
-        Settings = new AppSettings(BackgroundBox.IsChecked == true, StartupBox.IsChecked == true).Normalize();
+        var mascot = BuildMascotSettings(out var error);
+        if (mascot is null)
+        {
+            MessageBox.Show(this, error, "圖片設定無法套用", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Settings = new AppSettings(BackgroundBox.IsChecked == true, StartupBox.IsChecked == true, mascot).Normalize();
         DialogResult = true;
     }
 
     private void CancelClick(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private MascotSettings? BuildMascotSettings(out string error)
+    {
+        var mode = SelectedMascotMode();
+        if (!int.TryParse(FrameRateBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var framesPerSecond))
+        {
+            error = "播放速度必須是 1 到 30 之間的整數。";
+            return null;
+        }
+
+        var settings = new MascotSettings(
+            mode,
+            mode == MascotAssetMode.BuiltInMushroom ? null : MascotPathBox.Text,
+            framesPerSecond).Normalize();
+        if (mode != MascotAssetMode.BuiltInMushroom)
+        {
+            var validator = new MascotAnimation();
+            if (!validator.TryValidate(settings, out error)) return null;
+        }
+
+        error = string.Empty;
+        return settings;
+    }
+
+    private MascotAssetMode SelectedMascotMode()
+    {
+        return Enum.TryParse<MascotAssetMode>(MascotModeBox.SelectedValue?.ToString(), out var mode)
+            ? mode
+            : MascotAssetMode.BuiltInMushroom;
+    }
+
+    private void UpdateMascotControls()
+    {
+        if (MascotModeBox is null || MascotPathBox is null || BrowseMascotButton is null || FrameRateBox is null || MascotRuleText is null) return;
+        var mode = SelectedMascotMode();
+        var usesFile = mode != MascotAssetMode.BuiltInMushroom;
+        MascotPathBox.IsEnabled = usesFile;
+        BrowseMascotButton.IsEnabled = usesFile;
+        FrameRateBox.IsEnabled = mode == MascotAssetMode.SpriteSheet4x4;
+        MascotRuleText.Text = mode switch
+        {
+            MascotAssetMode.BuiltInMushroom => "內建圖片會以像素風格顯示，作業系統停用動畫時仍保持靜態。",
+            MascotAssetMode.StaticImage => "靜態圖片會固定顯示第一張畫面；建議使用帶透明背景的 PNG。",
+            MascotAssetMode.AnimatedGif => "GIF 依檔案內建的影格時間循環播放；若 GIF 只有一張影格，就當作靜態圖片。",
+            MascotAssetMode.SpriteSheet4x4 => "規則：圖片必須無間距等分為 4 欄×4 列，依左至右、上至下播放 16 影格，播完回到第一格循環。",
+            _ => string.Empty
+        };
+    }
+
+    private string GetFileFilter(MascotAssetMode mode) => mode switch
+    {
+        MascotAssetMode.StaticImage => "靜態圖片|*.png;*.jpg;*.jpeg;*.bmp;*.ico",
+        MascotAssetMode.AnimatedGif => "GIF 動圖|*.gif",
+        MascotAssetMode.SpriteSheet4x4 => "4×4 圖片|*.png;*.jpg;*.jpeg;*.bmp",
+        _ => "圖片檔案|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico"
+    };
 
     private void UpdateStartupStatus()
     {
