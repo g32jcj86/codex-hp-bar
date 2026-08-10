@@ -75,7 +75,7 @@ public sealed class QuotaWidget : FrameworkElement
         dc.PushTransform(new ScaleTransform(1 / scale, 1 / scale));
         var width = ActualWidth * scale;
         var height = ActualHeight * scale;
-        var bob = SystemParameters.ClientAreaAnimation
+        var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
             ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
             : 0;
 

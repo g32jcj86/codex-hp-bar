@@ -13,6 +13,7 @@ internal sealed class MascotAnimation
     private readonly List<MascotFrame> _frames = [];
     private int _frameIndex;
     private DateTimeOffset _nextFrameAt;
+    private MascotAssetMode _mode = MascotAssetMode.BuiltInMushroom;
 
     public MascotAnimation()
     {
@@ -23,6 +24,8 @@ internal sealed class MascotAnimation
 
     public bool IsAnimated => _frames.Count > 1;
 
+    public bool AllowsIdleBob => _mode != MascotAssetMode.SpriteSheet4x4;
+
     public TimeSpan NextFrameDelay => IsAnimated
         ? _frames[_frameIndex].Duration
         : TimeSpan.FromMilliseconds(250);
@@ -32,6 +35,7 @@ internal sealed class MascotAnimation
     public void Apply(MascotSettings settings)
     {
         var normalized = settings.Normalize();
+        _mode = normalized.Mode;
         try
         {
             ReplaceFrames(LoadFrames(normalized));
@@ -42,7 +46,9 @@ internal sealed class MascotAnimation
             Error = exception.Message;
             try
             {
-                ReplaceFrames(LoadFrames(new MascotSettings(MascotAssetMode.BuiltInMushroom, null, 8)));
+                var fallback = new MascotSettings(MascotAssetMode.BuiltInMushroom, null, 8);
+                _mode = fallback.Mode;
+                ReplaceFrames(LoadFrames(fallback));
             }
             catch
             {

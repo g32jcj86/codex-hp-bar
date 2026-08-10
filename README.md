@@ -22,7 +22,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 
 ## 三步驟快速開始
 
-1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.2.0-win-x64-portable.zip`。
+1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.2.1-win-x64-portable.zip`。
 2. 解壓縮後執行 `CodexHpBar.exe`。
 3. 在首次啟用視窗選擇是否允許背景待命及 Windows 登入自動啟動，再按「套用並啟用」。
 
@@ -64,9 +64,9 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 - **GIF 動圖**：接受 GIF，依 GIF 的影格延遲循環播放；只有一張影格時視為靜態圖。
 - **4×4 連續動畫圖片**：接受 PNG、JPG、BMP，必須無間距等分成 4 欄×4 列，共 16 格。
 
-4×4 圖片採遊戲常見的 sprite sheet 規則：影格尺寸必須完全相同，從左至右、由上至下編號 0–15，播完後回到第 0 格循環；播放速度可設定 1–30 FPS，預設 8 FPS。透明背景 PNG 最適合工具列顯示，圖片檔上限為 20 MB、最長邊不可超過 4096 像素。
+4×4 圖片採遊戲常見的 sprite sheet 規則：影格尺寸必須完全相同，從左至右、由上至下編號 0–15，播完後回到第 0 格循環；播放速度可設定 1–30 FPS，預設 8 FPS。4×4 模式不會再疊加程式額外的上下浮動，垂直移動完全由影格內容控制。透明背景 PNG 最適合工具列顯示，圖片檔上限為 20 MB、最長邊不可超過 4096 像素。
 
-角色圖片設定會儲存在 `%LOCALAPPDATA%\CodexHpBar\settings.json`，外部圖片只記錄本機檔案路徑，不會上傳或執行檔案。
+角色圖片設定會儲存在 `%LOCALAPPDATA%\CodexHpBar\settings.json`。選擇外部圖片後，程式會先複製到執行檔旁的 `MascotAssets` 資料夾，設定檔只記錄複製後的路徑；原始檔案不會被刪除，也不會上傳或執行圖片內容。
 
 若要重新顯示首次啟用畫面：
 
@@ -90,7 +90,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 下載同一版本的 `SHA256SUMS.txt`，在 PowerShell 執行：
 
 ```powershell
-Get-FileHash .\CodexHpBar-v0.2.0-win-x64-portable.zip -Algorithm SHA256
+Get-FileHash .\CodexHpBar-v0.2.1-win-x64-portable.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 

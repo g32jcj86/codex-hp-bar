@@ -41,7 +41,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="MascotPathBox" IsReadOnly="True" Padding="7,4" VerticalContentAlignment="Center" ToolTip="圖片只會從本機讀取。"/>
+                    <TextBox x:Name="MascotPathBox" IsReadOnly="True" Padding="7,4" VerticalContentAlignment="Center" ToolTip="選取後會複製到執行檔旁的 MascotAssets 資料夾；原始檔案不會被刪除。"/>
                     <Button x:Name="BrowseMascotButton" Grid.Column="1" Content="選擇檔案" Margin="8,0,0,0" Padding="12,4" Click="BrowseMascotClick"/>
                 </Grid>
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">

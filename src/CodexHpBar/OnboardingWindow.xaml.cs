@@ -52,7 +52,18 @@ public partial class OnboardingWindow : Window
             Multiselect = false,
             Filter = GetFileFilter(SelectedMascotMode())
         };
-        if (dialog.ShowDialog(this) == true) MascotPathBox.Text = dialog.FileName;
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            var selected = new MascotSettings(SelectedMascotMode(), dialog.FileName, 8);
+            var copied = MascotAssetStorage.EnsureLocalCopy(selected);
+            MascotPathBox.Text = copied.FilePath ?? string.Empty;
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, "圖片檔案無法複製", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void ApplyClick(object sender, RoutedEventArgs e)
@@ -85,6 +96,16 @@ public partial class OnboardingWindow : Window
             framesPerSecond).Normalize();
         if (mode != MascotAssetMode.BuiltInMushroom)
         {
+            try
+            {
+                settings = MascotAssetStorage.EnsureLocalCopy(settings);
+            }
+            catch (Exception exception)
+            {
+                error = exception.Message;
+                return null;
+            }
+
             var validator = new MascotAnimation();
             if (!validator.TryValidate(settings, out error)) return null;
         }

@@ -115,6 +115,36 @@ public sealed class QuotaTests
         Assert.Equal(expected, normalized.FramesPerSecond);
     }
 
+    [Fact]
+    public void MascotAssetStorage_CopiesSelectedFileWithoutRemovingOriginal()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"CodexHpBarTests-{Guid.NewGuid():N}");
+        var sourceDirectory = Path.Combine(root, "source");
+        var executionDirectory = Path.Combine(root, "application");
+        var sourcePath = Path.Combine(sourceDirectory, "frames.png");
+
+        try
+        {
+            Directory.CreateDirectory(sourceDirectory);
+            File.WriteAllBytes(sourcePath, [1, 2, 3, 4]);
+
+            var settings = new MascotSettings(MascotAssetMode.StaticImage, sourcePath, 8);
+            var copied = MascotAssetStorage.EnsureLocalCopy(settings, executionDirectory);
+
+            Assert.NotEqual(Path.GetFullPath(sourcePath), copied.FilePath);
+            Assert.StartsWith(
+                Path.Combine(Path.GetFullPath(executionDirectory), MascotAssetStorage.DirectoryName) + Path.DirectorySeparatorChar,
+                copied.FilePath!,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(copied.FilePath!));
+            Assert.True(File.Exists(sourcePath));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-json")]

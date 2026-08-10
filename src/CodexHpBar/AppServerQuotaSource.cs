@@ -73,7 +73,7 @@ public sealed class AppServerQuotaSource : IQuotaSource
 
             _ = await RequestAsync("initialize", new
             {
-                clientInfo = new { name = "codex_hp_bar", title = "Codex HP Bar", version = "0.2.0" }
+                clientInfo = new { name = "codex_hp_bar", title = "Codex HP Bar", version = "0.2.1" }
             }, cancellationToken);
             await SendAsync(new { method = "initialized", @params = new { } }, cancellationToken);
         }
