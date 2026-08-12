@@ -6,7 +6,7 @@ using CodexHpBar.Core;
 
 namespace CodexHpBar;
 
-internal sealed record MascotFrame(ImageSource Image, TimeSpan Duration, double VerticalOffsetRatio = 0);
+internal sealed record MascotFrame(ImageSource Image, TimeSpan Duration, double VerticalOffsetRatio = 0, double HorizontalOffsetRatio = 0);
 
 internal sealed class MascotAnimation
 {
@@ -23,6 +23,8 @@ internal sealed class MascotAnimation
     public ImageSource? CurrentImage => _frames.Count == 0 ? null : _frames[_frameIndex].Image;
 
     public double CurrentVerticalOffsetRatio => _frames.Count == 0 ? 0 : _frames[_frameIndex].VerticalOffsetRatio;
+
+    public double CurrentHorizontalOffsetRatio => _frames.Count == 0 ? 0 : _frames[_frameIndex].HorizontalOffsetRatio;
 
     public bool IsAnimated => _frames.Count > 1;
 
@@ -137,15 +139,91 @@ internal sealed class MascotAnimation
             throw new InvalidDataException("圖片尺寸不可超過 4096×4096 像素。");
         }
 
-        var frames = new List<MascotFrame>(decoder.Frames.Count);
-        foreach (var frame in decoder.Frames)
+        var sourceFrames = decoder.Frames.ToArray();
+        var frameRects = sourceFrames.Select(GetGifFrameRect).ToArray();
+        var canvasSize = GetGifCanvasSize(sourceFrames, frameRects);
+        var frames = new List<MascotFrame>(sourceFrames.Length);
+        for (var index = 0; index < sourceFrames.Length; index++)
         {
+            var frame = sourceFrames[index];
             var duration = ReadGifDuration(frame);
-            if (frame.CanFreeze) frame.Freeze();
-            frames.Add(new MascotFrame(frame, duration));
+            // GifBitmapDecoder exposes optimized GIF frames as cropped images.
+            // Later frames can therefore be 113x193, 196x180, etc. Drawing
+            // those directly into a fixed 34x34 slot changes their aspect
+            // ratio and makes the character look wider or thinner. Rebuild
+            // every frame on the same square logical canvas using the GIF
+            // frame offset before the runtime scales it.
+            frames.Add(new MascotFrame(
+                ComposeGifFrame(frame, frameRects[index], canvasSize),
+                duration));
         }
 
         return frames;
+    }
+
+    private static (int Width, int Height) GetGifCanvasSize(IReadOnlyList<BitmapFrame> frames, IReadOnlyList<Int32Rect> frameRects)
+    {
+        var canvasWidth = frameRects.Max(rect => rect.X + rect.Width);
+        var canvasHeight = frameRects.Max(rect => rect.Y + rect.Height);
+        if (frames.FirstOrDefault()?.Metadata is BitmapMetadata metadata)
+        {
+            canvasWidth = Math.Max(canvasWidth, ReadGifMetadataInt(metadata, "/logscrdesc/Width", 0));
+            canvasHeight = Math.Max(canvasHeight, ReadGifMetadataInt(metadata, "/logscrdesc/Height", 0));
+        }
+
+        canvasWidth = Math.Max(1, canvasWidth);
+        canvasHeight = Math.Max(1, canvasHeight);
+        if (canvasWidth > 4096 || canvasHeight > 4096)
+        {
+            throw new InvalidDataException("GIF 邏輯畫布不可超過 4096×4096 像素。");
+        }
+
+        return (canvasWidth, canvasHeight);
+    }
+
+    private static Int32Rect GetGifFrameRect(BitmapFrame frame)
+    {
+        var left = 0;
+        var top = 0;
+        if (frame.Metadata is BitmapMetadata metadata)
+        {
+            left = Math.Max(0, ReadGifMetadataInt(metadata, "/imgdesc/Left", 0));
+            top = Math.Max(0, ReadGifMetadataInt(metadata, "/imgdesc/Top", 0));
+        }
+
+        return new Int32Rect(left, top, frame.PixelWidth, frame.PixelHeight);
+    }
+
+    private static BitmapSource ComposeGifFrame(BitmapFrame frame, Int32Rect frameRect, (int Width, int Height) canvasSize)
+    {
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            context.DrawImage(frame, new Rect(frameRect.X, frameRect.Y, frame.PixelWidth, frame.PixelHeight));
+        }
+
+        var canvas = new RenderTargetBitmap(canvasSize.Width, canvasSize.Height, 96, 96, PixelFormats.Pbgra32);
+        canvas.Render(visual);
+        canvas.Freeze();
+        return canvas;
+    }
+
+    private static int ReadGifMetadataInt(BitmapMetadata metadata, string query, int fallback)
+    {
+        if (!metadata.ContainsQuery(query)) return fallback;
+
+        return metadata.GetQuery(query) switch
+        {
+            byte value => value,
+            sbyte value => value,
+            short value => value,
+            ushort value => value,
+            int value => value,
+            uint value when value <= int.MaxValue => (int)value,
+            long value when value is >= int.MinValue and <= int.MaxValue => (int)value,
+            ulong value when value <= int.MaxValue => (int)value,
+            _ => fallback
+        };
     }
 
     private IReadOnlyList<MascotFrame> LoadSpriteSheet(Uri uri, int framesPerSecond)
@@ -159,7 +237,7 @@ internal sealed class MascotAnimation
         var frameWidth = sheet.PixelWidth / 4;
         var frameHeight = sheet.PixelHeight / 4;
         var duration = TimeSpan.FromSeconds(1d / Math.Clamp(framesPerSecond, 1, 30));
-        var sourceFrames = new List<(BitmapSource Frame, int VisibleBottom)>(16);
+        var sourceFrames = new List<BitmapSource>(16);
         for (var row = 0; row < 4; row++)
         {
             for (var column = 0; column < 4; column++)
@@ -170,24 +248,67 @@ internal sealed class MascotAnimation
                     frameWidth,
                     frameHeight));
                 frame.Freeze();
-                sourceFrames.Add((frame, FindVisibleBottom(frame)));
+                sourceFrames.Add(frame);
             }
         }
 
-        var baseline = sourceFrames.Max(item => item.VisibleBottom);
+        // Crop every frame with one shared rectangle. This removes common
+        // transparent padding so a small toolbar can show more of the actor,
+        // while preserving one identical transform for all 16 frames.
+        var displayBox = FindCommonVisibleBounds(sourceFrames, padding: 4);
         var frames = new List<MascotFrame>(16);
-        foreach (var item in sourceFrames)
+        foreach (var sourceFrame in sourceFrames)
         {
-            var verticalOffsetRatio = baseline >= 0 && item.VisibleBottom >= 0
-                ? (baseline - item.VisibleBottom) / (double)frameHeight
-                : 0;
-            frames.Add(new MascotFrame(item.Frame, duration, verticalOffsetRatio));
+            var displayFrame = new CroppedBitmap(sourceFrame, displayBox);
+            displayFrame.Freeze();
+            frames.Add(new MascotFrame(displayFrame, duration));
         }
 
         return frames;
     }
 
-    private static int FindVisibleBottom(BitmapSource frame)
+    private static Int32Rect FindCommonVisibleBounds(IReadOnlyList<BitmapSource> frames, int padding)
+    {
+        if (frames.Count == 0) return new Int32Rect(0, 0, 1, 1);
+
+        var width = frames[0].PixelWidth;
+        var height = frames[0].PixelHeight;
+        var left = width;
+        var top = height;
+        var right = 0;
+        var bottom = 0;
+        foreach (var frame in frames)
+        {
+            var bounds = FindVisibleBounds(frame);
+            if (bounds.Left < 0 || bounds.Right < 0 || bounds.Bottom < 0) continue;
+            left = Math.Min(left, bounds.Left);
+            top = Math.Min(top, bounds.Top);
+            right = Math.Max(right, bounds.Right);
+            bottom = Math.Max(bottom, bounds.Bottom + 1);
+        }
+
+        if (right <= left || bottom <= top) return new Int32Rect(0, 0, width, height);
+        left = Math.Max(0, left - padding);
+        top = Math.Max(0, top - padding);
+        right = Math.Min(width, right + padding);
+        bottom = Math.Min(height, bottom + padding);
+        var cropWidth = Math.Max(1, right - left);
+        var cropHeight = Math.Max(1, bottom - top);
+        var cropSize = Math.Min(width, Math.Max(cropWidth, cropHeight));
+        if (cropWidth < cropSize)
+        {
+            var extra = cropSize - cropWidth;
+            left = Math.Max(0, Math.Min(width - cropSize, left - extra / 2));
+        }
+        if (cropHeight < cropSize)
+        {
+            var extra = cropSize - cropHeight;
+            top = Math.Max(0, Math.Min(height - cropSize, top - extra / 2));
+        }
+        return new Int32Rect(left, top, cropSize, cropSize);
+    }
+
+    private static (int Left, int Top, int Right, int Bottom) FindVisibleBounds(BitmapSource frame)
     {
         var converted = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
         converted.Freeze();
@@ -195,16 +316,23 @@ internal sealed class MascotAnimation
         var pixels = new byte[stride * converted.PixelHeight];
         converted.CopyPixels(pixels, stride, 0);
 
+        var visibleLeft = converted.PixelWidth;
+        var visibleTop = converted.PixelHeight;
+        var visibleRight = -1;
         var visibleBottom = -1;
         for (var y = 0; y < converted.PixelHeight; y++)
         {
             for (var x = 0; x < converted.PixelWidth; x++)
             {
-                if (pixels[y * stride + x * 4 + 3] >= 16) visibleBottom = y;
+                if (pixels[y * stride + x * 4 + 3] < 16) continue;
+                visibleLeft = Math.Min(visibleLeft, x);
+                visibleTop = Math.Min(visibleTop, y);
+                visibleRight = Math.Max(visibleRight, x + 1);
+                visibleBottom = Math.Max(visibleBottom, y);
             }
         }
 
-        return visibleBottom;
+        return (visibleLeft == converted.PixelWidth ? -1 : visibleLeft, visibleTop, visibleRight, visibleBottom);
     }
 
     private TimeSpan ReadGifDuration(BitmapFrame frame)
