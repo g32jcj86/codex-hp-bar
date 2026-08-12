@@ -36,7 +36,10 @@ public sealed class QuotaWidget : FrameworkElement
 
     public QuotaWidget()
     {
-        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
+        // The character art is clean HD rather than pixel art. HighQuality
+        // keeps the thick outline readable when the shared sprite canvas is
+        // reduced to the compact taskbar slot.
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
         _animationTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) =>
         {
             if (SystemParameters.ClientAreaAnimation)
@@ -78,11 +81,19 @@ public sealed class QuotaWidget : FrameworkElement
         var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
             ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
             : 0;
-        var frameOffset = _mascotAnimation.CurrentVerticalOffsetRatio * 30;
+        // Sprite-sheet frames are already authored on a fixed canvas. Do not
+        // derive runtime position from transparent bounds: a sword or slash FX
+        // can make the visible bbox wider and would move the character.
+        var frameOffset = _mascotAnimation.AllowsIdleBob
+            ? _mascotAnimation.CurrentVerticalOffsetRatio * 30
+            : 0;
+        var frameHorizontalOffset = _mascotAnimation.AllowsIdleBob
+            ? _mascotAnimation.CurrentHorizontalOffsetRatio * 30
+            : 0;
 
         if (_mascotAnimation.CurrentImage is { } mascot)
         {
-            dc.DrawImage(mascot, new Rect(2, 3 + bob + frameOffset, 30, 30));
+            DrawImageUniform(dc, mascot, new Rect(1 + frameHorizontalOffset, 2 + bob + frameOffset, 34, 34));
         }
         else
         {
@@ -91,16 +102,16 @@ public sealed class QuotaWidget : FrameworkElement
         var windows = Snapshot.OrderedWindows;
         if (windows.Count == 0)
         {
-            DrawBar(dc, new Rect(35, 9, Math.Max(20, width - 38), 20), null, Brushes.Gray, "--%");
+            DrawBar(dc, new Rect(39, 9, Math.Max(20, width - 42), 20), null, Brushes.Gray, "--%");
         }
         else if (windows.Count == 1)
         {
-            DrawBar(dc, new Rect(35, 9, Math.Max(20, width - 38), 20), windows[0], Berry, null);
+            DrawBar(dc, new Rect(39, 9, Math.Max(20, width - 42), 20), windows[0], Berry, null);
         }
         else
         {
-            DrawBar(dc, new Rect(35, 5, Math.Max(20, width - 38), 12), windows[0], Coral, null);
-            DrawBar(dc, new Rect(35, 21, Math.Max(20, width - 38), 12), windows[1], Berry, null);
+            DrawBar(dc, new Rect(39, 5, Math.Max(20, width - 42), 12), windows[0], Coral, null);
+            DrawBar(dc, new Rect(39, 21, Math.Max(20, width - 42), 12), windows[1], Berry, null);
         }
 
         if (Snapshot.IsStale)
@@ -135,6 +146,23 @@ public sealed class QuotaWidget : FrameworkElement
 
         var text = fallback ?? $"{percent}%";
         DrawPixelText(dc, text, rect);
+    }
+
+    private static void DrawImageUniform(DrawingContext dc, ImageSource image, Rect slot)
+    {
+        var sourceWidth = image is BitmapSource bitmap ? bitmap.PixelWidth : image.Width;
+        var sourceHeight = image is BitmapSource bitmapSource ? bitmapSource.PixelHeight : image.Height;
+        if (sourceWidth <= 0 || sourceHeight <= 0) return;
+
+        var scale = Math.Min(slot.Width / sourceWidth, slot.Height / sourceHeight);
+        var width = sourceWidth * scale;
+        var height = sourceHeight * scale;
+        var destination = new Rect(
+            slot.X + (slot.Width - width) / 2,
+            slot.Y + (slot.Height - height) / 2,
+            width,
+            height);
+        dc.DrawImage(image, destination);
     }
 
     private static void DrawPixelText(DrawingContext dc, string text, Rect rect)
