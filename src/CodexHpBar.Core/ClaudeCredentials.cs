@@ -4,6 +4,8 @@ namespace CodexHpBar.Core;
 
 public sealed class ClaudeCredentials
 {
+    public const string ExpiredError = "Claude Code 權杖已過期，開啟 Claude Code 後會自動更新";
+
     public string AccessToken { get; }
 
     private ClaudeCredentials(string accessToken) => AccessToken = accessToken;
@@ -24,7 +26,7 @@ public sealed class ClaudeCredentials
 
             if (milliseconds <= now.ToUnixTimeMilliseconds())
             {
-                error = "Claude Code 權杖已過期，開啟 Claude Code 後會自動更新";
+                error = ExpiredError;
                 return null;
             }
 
