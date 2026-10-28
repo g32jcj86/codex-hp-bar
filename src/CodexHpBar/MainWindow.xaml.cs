@@ -38,23 +38,33 @@ public partial class MainWindow : Window
     {
         Widget.Snapshot = snapshot;
         Widget.ClaudeSnapshot = claude;
-        _quotaToolTip.Content = $"Claude Code{Environment.NewLine}{TooltipBuilder.Build(claude)}{Environment.NewLine}{Environment.NewLine}Codex{Environment.NewLine}{TooltipBuilder.Build(snapshot)}";
+        // Snapshots are pushed every second; reassigning identical content
+        // makes an open tooltip re-layout and flicker.
+        var text = $"Claude Code{Environment.NewLine}{TooltipBuilder.Build(claude)}{Environment.NewLine}{Environment.NewLine}Codex{Environment.NewLine}{TooltipBuilder.Build(snapshot)}";
+        if (!Equals(_quotaToolTip.Content, text)) _quotaToolTip.Content = text;
     }
 
     public void Place(TaskbarPlacement taskbar)
     {
         var bounds = TaskbarGeometry.Calculate(taskbar);
-        SetWindowPos(new WindowInteropHelper(this).Handle, new nint(-1), bounds.Left, bounds.Top, bounds.Width, bounds.Height, SwpNoactivate | SwpShowwindow);
+        SetWindowPos(new WindowInteropHelper(this).Handle, InsertAfter(), bounds.Left, bounds.Top, bounds.Width, bounds.Height, SwpNoactivate | SwpShowwindow);
     }
 
     public void BringAboveTaskbar()
     {
         if (!IsVisible) return;
-        _ = SetWindowPos(new WindowInteropHelper(this).Handle, new nint(-1), 0, 0, 0, 0,
+        _ = SetWindowPos(new WindowInteropHelper(this).Handle, InsertAfter(), 0, 0, 0, 0,
             SwpNoactivate | SwpNosize | SwpNomove);
-        if (_toolTipHandle != 0)
-            _ = SetWindowPos(_toolTipHandle, new nint(-1), 0, 0, 0, 0,
-                SwpNoactivate | SwpNosize | SwpNomove);
+    }
+
+    // While the tooltip is open, keep the tooltip on top and slot the widget
+    // directly below it; raising both to HWND_TOPMOST each tick swaps their
+    // order every 50 ms and makes the tooltip flicker.
+    private nint InsertAfter()
+    {
+        if (_toolTipHandle == 0) return new nint(-1);
+        _ = SetWindowPos(_toolTipHandle, new nint(-1), 0, 0, 0, 0, SwpNoactivate | SwpNosize | SwpNomove);
+        return _toolTipHandle;
     }
 
     private void ApplyWindowStyles()
