@@ -100,7 +100,7 @@ pwsh -NoProfile -File .\scripts\validate.ps1
 --demo low
 ```
 
-移除 `--demo` 後才會連線至真正的 Codex app-server，並依帳號目前政策自動顯示單血條或雙血條。
+移除 `--demo` 後才會連線至真正的 Codex app-server，並依帳號目前政策自動顯示單圓環或雙圓環。
 
 ## 七、建立免安裝 Release
 
@@ -150,7 +150,7 @@ $LASTEXITCODE
 
 「登入 Windows 時自動啟動」預設未勾選，因此只完成編譯或第一次執行並不會自動開機啟動。
 
-只有在設定視窗勾選「登入 Windows 時自動啟動」並按「套用並啟用」後，程式才會在目前使用者的 Startup 資料夾建立 `Codex HP Bar.lnk`。取消該選項並套用後，捷徑會被刪除。
+程式每次正常啟動都會在目前使用者的 Startup 資料夾建立或修復 `Codex HP Bar.lnk`；執行 `--reset-settings` 會刪除該捷徑。
 
 可以在 PowerShell 檢查目前狀態：
 
@@ -165,6 +165,6 @@ Test-Path -LiteralPath $shortcut
 
 - 找不到 .NET 10：使用 Visual Studio Installer 補裝 .NET 10 SDK 與「.NET 桌面開發」。
 - `CodexHpBar.sln` 無法開啟：更新 Visual Studio 2026，或改用 `dotnet build CodexHpBar.sln -c Release`。
-- EXE 無法覆寫：先在血條右鍵選擇「關閉監測器」，再重新執行發布腳本。
+- EXE 無法覆寫：先在儀表右鍵選擇「關閉監測器」，再重新執行發布腳本。
 - `--self-test` 回傳 `1`：確認 Codex 桌面程式已安裝、已登入，而且本機 Codex 目錄中存在 `codex.exe`。
 - SmartScreen 顯示提示：本專案未簽章，請先依 `SHA256SUMS.txt` 驗證雜湊，再選擇「其他資訊」→「仍要執行」。

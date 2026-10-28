@@ -1,8 +1,8 @@
 # Claude Code + Codex 額度監測器
 
-Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度監測器，以兩個品牌色圓環儀表顯示各自的剩餘額度。
+Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。左邊的橘色儀表是 **Claude Code**、右邊的綠色儀表是 **Codex**，外圈顯示每週額度、內圈顯示 5 小時額度，剩餘百分比直接寫在圓心。
 
-![工具列示意](docs/media/taskbar-demo.png)
+![工具列示意：左為 Claude Code、右為 Codex](docs/media/taskbar-demo.png)
 
 ## 功能特色
 
@@ -17,6 +17,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度�
 
 - Windows 11 x64。
 - 已安裝並登入 Codex 桌面應用程式。
+- 若要顯示 Claude Code 額度：已用 Claude Pro／Max 帳號登入 Claude Code（桌面 app 或 CLI 皆可）。未登入時 Claude Code 儀表顯示灰圈。
 - 若從原始碼建置，需要 .NET 10 SDK。
 
 ## 三步驟快速開始
@@ -31,7 +32,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度�
 
 啟動後自動在背景待命並加入 Windows 登入自動啟動，無需設定，也不會顯示設定視窗。
 
-- **背景待命**：Codex 關閉時血條隱藏，但程式保留在背景，等待下次開啟 Codex。
+- **背景待命**：Codex 關閉時儀表隱藏，但程式保留在背景，等待下次開啟 Codex。
 - **登入 Windows 時自動啟動**：自動建立或修復目前使用者的 Startup 捷徑。
 
 程式會自動儲存設定。設定檔位於 `%LOCALAPPDATA%\CodexHpBar\settings.json`，其中不包含登入資料。
@@ -39,6 +40,8 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度�
 ## 如何閱讀額度圓環
 
 由左到右依序是 **Claude Code**、**Codex** 儀表，以品牌色區分：
+
+![四種狀態：每週 + 5 小時、只有每週、低額度、無法取得](docs/media/taskbar-states.png)
 
 | 儀表 | 外圈（每週） | 內圈（5 小時） |
 |---|---|---|
@@ -48,8 +51,10 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度�
 - 圓環從 12 點鐘方向順時針填滿剩餘額度；沒有 5 小時限制時只顯示外圈。
 - 剩餘百分比直接寫在圓心：只有一圈時顯示一個數字；兩圈時上行是每週、下行是 5 小時，顏色與對應圓環相同。
 - 青色圓點：該儀表任一額度剩餘 20% 以下。
-- 黃色圓點：資料暫時無法更新，仍顯示五分鐘內最後一次成功資料。
-- 灰色空圈與 `--`：目前無法取得額度。將滑鼠停在小工具上可查看原因。
+- 黃色圓點：資料暫時無法更新，仍顯示最後一次成功取得的資料。
+- 灰色空圈與 `--`：目前無法取得額度。
+
+百分比代表剩餘量，計算方式為 `100 - 已用百分比`。將滑鼠停在小工具上，提示會分成 Claude Code 與 Codex 兩段，列出各額度的剩餘量、本機時間的重置時刻與最後更新時間；無法取得時則顯示原因。
 
 ### Claude Code 額度來源
 
@@ -57,15 +62,16 @@ Claude Code 額度透過 `https://api.anthropic.com/api/oauth/usage` 查詢，�
 
 程式從 `%USERPROFILE%\.claude\.credentials.json` 讀取 `claudeAiOauth.accessToken` 與 `expiresAt`；若設定 `CLAUDE_CONFIG_DIR`，則改讀該目錄的 `.credentials.json`。權杖只保留於記憶體，只送往 `https://api.anthropic.com`，不寫入記錄或提示文字，也不儲存新的權杖副本。
 
-程式不會使用 refresh token 刷新權杖。若權杖過期，請開啟 Claude Code，讓它自行更新登入資料。HTTP 401／403 會顯示登入已失效；其他更新失敗時，有成功資料就保留並標示為陳舊資料。這是未公開的用量介面，可能隨服務更新而變動，無需設定 status line。
-百分比代表剩餘量，計算方式為 `100 - usedPercent`。提示文字會列出本機時間的重置時刻與最後更新時間。
+程式不會使用 refresh token 刷新權杖。若權杖過期，請開啟 Claude Code，讓它自行更新登入資料。HTTP 401／403 會顯示登入已失效；其他更新失敗時，有成功資料就保留並標示為陳舊資料。
+
+這是未公開的用量介面，可能隨服務更新而變動。之所以不使用 Claude Code 的 status line，是因為 Claude 桌面 app 不會執行 status line 指令。
 
 ## 操作與設定
 
-在血條上按滑鼠右鍵：
+在儀表上按滑鼠右鍵：
 
 - **立即更新**：立刻重新讀取額度。
-- **關閉監測器**：關閉所有螢幕上的血條與背景程序。
+- **關閉監測器**：關閉所有螢幕上的儀表與背景程序。
 
 程式關閉後，可用下列命令清除設定與 Startup 捷徑；清除後程式會結束。下次正常啟動仍會自動啟用背景待命並重建捷徑：
 
@@ -79,10 +85,12 @@ Claude Code 額度透過 `https://api.anthropic.com/api/oauth/usage` 查詢，�
 | --- | --- |
 | `--self-test` | 檢查 Codex app-server、額度讀取、工具列與 DPI，成功時回傳結束碼 `0`。 |
 | `--reset-settings` | 清除設定與 Startup 捷徑後結束；下次正常啟動會重新建立預設設定與捷徑。 |
-| `--demo single` | 顯示單一圓環（僅每週額度）示範資料。 |
-| `--demo dual` | 顯示雙圓環（每週 + 5 小時）示範資料。 |
-| `--demo low` | 顯示低額度狀態。 |
-| `--demo offline` | 顯示離線狀態。 |
+| `--demo dual` | 兩個儀表都顯示每週 + 5 小時雙圓環的示範資料。 |
+| `--demo single` | 兩個儀表都只顯示每週額度單一圓環的示範資料。 |
+| `--demo low` | 顯示低額度狀態（青色圓點）。 |
+| `--demo offline` | 顯示無法取得額度的狀態。 |
+
+示範模式不會讀取任何額度或登入資料。
 
 ## 驗證下載檔案
 
@@ -97,10 +105,10 @@ Get-Content .\SHA256SUMS.txt
 
 ## 隱私與安全
 
-- Codex 額度透過本機 `codex app-server --stdio` 的 `account/rateLimits/read` 取得；Claude Code 額度透過 Anthropic 用量 API 查詢。
-- 程式不讀取 `auth.json`、不記錄 Email、不開放網路連接埠。
-- app-server 使用既有 Codex 登入狀態與官方服務通訊。
-- 設定檔包含背景待命與開機啟動設定。
+- Codex 額度透過本機 `codex app-server --stdio` 的 `account/rateLimits/read` 取得；程式不讀取 Codex 的 `auth.json`，app-server 使用既有 Codex 登入狀態與官方服務通訊。
+- Claude Code 額度需讀取本機 `.claude\.credentials.json` 的存取權杖，只送往 `https://api.anthropic.com` 查詢用量；不刷新、不另存、不記錄權杖。
+- 程式不記錄 Email、不開放網路連接埠。
+- 設定檔只包含背景待命與開機啟動設定。
 
 安全問題請參閱 [安全政策](SECURITY.md)。
 
@@ -124,7 +132,8 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## 已知限制
 
-- 僅偵測 Codex Windows 桌面應用程式，不會因 CLI 或 IDE 擴充套件而顯示。
+- 僅偵測 Codex Windows 桌面應用程式，不會因 CLI 或 IDE 擴充套件而顯示；Codex 桌面程式關閉時，Claude Code 儀表也會一起隱藏。
+- Claude Code 額度使用未公開的用量介面，Anthropic 變更格式時可能需要更新本程式。
 - Windows 11 沒有提供一般程式真正嵌入既有工具列的正式 API，因此使用不修改 Explorer 的透明覆蓋視窗。
 - Codex app-server 通訊協定更新時，可能需要更新本程式。
 - 未提供 ARM64 或 x86 版本。
