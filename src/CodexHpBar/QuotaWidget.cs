@@ -8,27 +8,10 @@ namespace CodexHpBar;
 
 public sealed class QuotaWidget : FrameworkElement
 {
-    private static readonly Brush Coral = FrozenBrush(255, 77, 103);
-    private static readonly Brush Berry = FrozenBrush(217, 70, 239);
+    private static readonly Brush Weekly = FrozenBrush(16, 163, 127);
+    private static readonly Brush ShortTerm = FrozenBrush(217, 119, 87);
     private static readonly Brush Track = FrozenBrush(21, 22, 28);
-    private static readonly Brush FrameBrush = FrozenBrush(218, 222, 232);
     private static readonly Brush Cyan = FrozenBrush(73, 210, 204);
-    private static readonly Pen Frame = FrozenPen(FrameBrush, 1);
-    private static readonly IReadOnlyDictionary<char, string[]> Glyphs = new Dictionary<char, string[]>
-    {
-        ['0'] = ["111", "101", "101", "101", "111"],
-        ['1'] = ["010", "110", "010", "010", "111"],
-        ['2'] = ["111", "001", "111", "100", "111"],
-        ['3'] = ["111", "001", "111", "001", "111"],
-        ['4'] = ["101", "101", "111", "001", "001"],
-        ['5'] = ["111", "100", "111", "001", "111"],
-        ['6'] = ["111", "100", "111", "101", "111"],
-        ['7'] = ["111", "001", "010", "010", "010"],
-        ['8'] = ["111", "101", "111", "101", "111"],
-        ['9'] = ["111", "101", "111", "001", "111"],
-        ['%'] = ["101", "001", "010", "100", "101"],
-        ['-'] = ["000", "000", "111", "000", "000"]
-    };
     private readonly DispatcherTimer _animationTimer;
     private readonly DateTimeOffset _animationStart = DateTimeOffset.UtcNow;
     private readonly MascotAnimation _mascotAnimation = new();
@@ -78,74 +61,110 @@ public sealed class QuotaWidget : FrameworkElement
         dc.PushTransform(new ScaleTransform(1 / scale, 1 / scale));
         var width = ActualWidth * scale;
         var height = ActualHeight * scale;
-        var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
-            ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
-            : 0;
-        // Sprite-sheet frames are already authored on a fixed canvas. Do not
-        // derive runtime position from transparent bounds: a sword or slash FX
-        // can make the visible bbox wider and would move the character.
-        var frameOffset = _mascotAnimation.AllowsIdleBob
-            ? _mascotAnimation.CurrentVerticalOffsetRatio * 30
-            : 0;
-        var frameHorizontalOffset = _mascotAnimation.AllowsIdleBob
-            ? _mascotAnimation.CurrentHorizontalOffsetRatio * 30
-            : 0;
-
-        if (_mascotAnimation.CurrentImage is { } mascot)
+        var windows = Snapshot.OrderedWindows;
+        var center = new Point(19 * scale, height / 2);
+        var thickness = (windows.Count == 2 ? 3 : 4) * scale;
+        var outerRadius = 17 * scale - thickness / 2;
+        if (windows.Count == 0)
         {
-            DrawImageUniform(dc, mascot, new Rect(1 + frameHorizontalOffset, 2 + bob + frameOffset, 34, 34));
+            dc.DrawEllipse(null, new Pen(Brushes.Gray, thickness), center, outerRadius, outerRadius);
         }
         else
         {
-            DrawFallbackMushroom(dc, 2, 4 + bob);
+            DrawRing(dc, center, outerRadius, thickness, windows[^1].RemainingPercent, Weekly);
         }
-        var windows = Snapshot.OrderedWindows;
+        if (windows.Count == 2)
+        {
+            DrawRing(dc, center, outerRadius - 4 * scale, thickness,
+                windows[0].RemainingPercent, ShortTerm);
+        }
+
+        var centerRadius = (windows.Count == 2 ? 9 : 12) * scale;
+        dc.PushClip(new EllipseGeometry(center, centerRadius, centerRadius));
+        var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
+            ? Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8) * scale * 0.5
+            : 0;
+        var mascotSize = centerRadius * 1.3;
+        var frameOffset = _mascotAnimation.AllowsIdleBob
+            ? _mascotAnimation.CurrentVerticalOffsetRatio * mascotSize : 0;
+        var frameHorizontalOffset = _mascotAnimation.AllowsIdleBob
+            ? _mascotAnimation.CurrentHorizontalOffsetRatio * mascotSize : 0;
+        var slot = new Rect(center.X - mascotSize / 2 + frameHorizontalOffset,
+            center.Y - mascotSize / 2 + bob + frameOffset, mascotSize, mascotSize);
+        if (_mascotAnimation.CurrentImage is { } mascot)
+        {
+            DrawImageUniform(dc, mascot, slot);
+        }
+        else
+        {
+            dc.PushTransform(new TranslateTransform(slot.X, slot.Y));
+            dc.PushTransform(new ScaleTransform(mascotSize / 33, mascotSize / 30));
+            DrawFallbackMushroom(dc, 0, 0);
+            dc.Pop();
+            dc.Pop();
+        }
+        dc.Pop();
+
+        var textRect = new Rect(40 * scale, (height - 32 * scale) / 2,
+            Math.Max(0, width - 43 * scale), 32 * scale);
+        dc.DrawRoundedRectangle(Track, null, textRect, 4 * scale, 4 * scale);
         if (windows.Count == 0)
         {
-            DrawBar(dc, new Rect(39, 9, Math.Max(20, width - 42), 20), null, Brushes.Gray, "--%");
+            DrawQuotaText(dc, "--%", Brushes.Gray, textRect, scale);
         }
         else if (windows.Count == 1)
         {
-            DrawBar(dc, new Rect(39, 9, Math.Max(20, width - 42), 20), windows[0], Berry, null);
+            DrawQuotaText(dc, $"週 {windows[0].RemainingPercent}%", Weekly, textRect, scale);
         }
         else
         {
-            DrawBar(dc, new Rect(39, 5, Math.Max(20, width - 42), 12), windows[0], Coral, null);
-            DrawBar(dc, new Rect(39, 21, Math.Max(20, width - 42), 12), windows[1], Berry, null);
+            var row = new Rect(textRect.X, textRect.Y, textRect.Width, textRect.Height / 2);
+            DrawQuotaText(dc, $"週 {windows[^1].RemainingPercent}%", Weekly, row, scale);
+            row.Y += row.Height;
+            DrawQuotaText(dc, $"5h {windows[0].RemainingPercent}%", ShortTerm, row, scale);
         }
 
         if (Snapshot.IsStale)
         {
-            dc.DrawEllipse(Brushes.Gold, null, new Point(width - 5, 5), 2, 2);
+            dc.DrawEllipse(Brushes.Gold, null, new Point(width - 5 * scale, 5 * scale), 2 * scale, 2 * scale);
         }
-
         if (windows.Count > 0 && windows.Min(window => window.RemainingPercent) <= 20)
         {
-            dc.DrawEllipse(Cyan, null, new Point(31, 7), 2, 3);
+            dc.DrawEllipse(Cyan, null, new Point(33 * scale, center.Y - 13 * scale), 2 * scale, 3 * scale);
         }
-
         dc.Pop();
     }
 
-    private static void DrawBar(DrawingContext dc, Rect rect, RateLimitWindow? window, Brush fill, string? fallback)
+    private static void DrawRing(DrawingContext dc, Point center, double radius, double thickness, int percent, Brush fill)
     {
-        dc.DrawRoundedRectangle(Track, Frame, rect, rect.Height / 2, rect.Height / 2);
-
-        var percent = window?.RemainingPercent ?? 0;
-        var inner = new Rect(rect.X + 2, rect.Y + 2, Math.Max(0, (rect.Width - 4) * percent / 100d), rect.Height - 4);
-        if (inner.Width > 0)
+        dc.DrawEllipse(null, new Pen(Track, thickness), center, radius, radius);
+        if (percent == 0) return;
+        var pen = new Pen(fill, thickness) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        if (percent == 100)
         {
-            dc.DrawRoundedRectangle(percent <= 20 ? Brushes.OrangeRed : fill, null, inner, inner.Height / 2, inner.Height / 2);
-            if (SystemParameters.ClientAreaAnimation && inner.Width > 8)
-            {
-                var progress = ((DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() % 3500) / 3500d);
-                var glowX = inner.X + 2 + progress * Math.Max(1, inner.Width - 4);
-                dc.DrawRectangle(Brushes.White, null, new Rect(glowX, inner.Y + 1, 1, Math.Max(1, inner.Height - 2)));
-            }
+            dc.DrawEllipse(null, pen, center, radius, radius);
+            return;
         }
+        var angle = percent / 100d * Math.PI * 2;
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(new Point(center.X, center.Y - radius), false, false);
+            context.ArcTo(new Point(center.X + Math.Sin(angle) * radius, center.Y - Math.Cos(angle) * radius),
+                new Size(radius, radius), 0, percent > 50, SweepDirection.Clockwise, true, false);
+        }
+        geometry.Freeze();
+        dc.DrawGeometry(null, pen, geometry);
+    }
 
-        var text = fallback ?? $"{percent}%";
-        DrawPixelText(dc, text, rect);
+    private static void DrawQuotaText(DrawingContext dc, string text, Brush brush, Rect row, double scale)
+    {
+        // The inverse DPI transform makes one drawing unit one device pixel.
+        // Scale the font size, with PixelsPerDip = 1 to avoid scaling it twice.
+        var formatted = new FormattedText(text, System.Globalization.CultureInfo.CurrentUICulture,
+            FlowDirection.LeftToRight, new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal,
+                FontWeights.SemiBold, FontStretches.Normal), 11 * scale, brush, 1);
+        dc.DrawText(formatted, new Point(row.X + 6 * scale, row.Y + (row.Height - formatted.Height) / 2));
     }
 
     private static void DrawImageUniform(DrawingContext dc, ImageSource image, Rect slot)
@@ -165,40 +184,11 @@ public sealed class QuotaWidget : FrameworkElement
         dc.DrawImage(image, destination);
     }
 
-    private static void DrawPixelText(DrawingContext dc, string text, Rect rect)
-    {
-        var pixel = rect.Height >= 18 ? 2d : 1d;
-        var glyphWidth = 3 * pixel;
-        var spacing = pixel;
-        var totalWidth = text.Length * glyphWidth + Math.Max(0, text.Length - 1) * spacing;
-        var x = Math.Round(rect.X + (rect.Width - totalWidth) / 2);
-        var y = Math.Round(rect.Y + (rect.Height - 5 * pixel) / 2);
-        foreach (var character in text)
-        {
-            if (Glyphs.TryGetValue(character, out var glyph))
-            {
-                for (var row = 0; row < 5; row++)
-                    for (var column = 0; column < 3; column++)
-                    {
-                        if (glyph[row][column] == '1') dc.DrawRectangle(Brushes.White, null, new Rect(x + column * pixel, y + row * pixel, pixel, pixel));
-                    }
-            }
-            x += glyphWidth + spacing;
-        }
-    }
-
     private static Brush FrozenBrush(byte red, byte green, byte blue)
     {
         var brush = new SolidColorBrush(Color.FromRgb(red, green, blue));
         brush.Freeze();
         return brush;
-    }
-
-    private static Pen FrozenPen(Brush brush, double thickness)
-    {
-        var pen = new Pen(brush, thickness);
-        pen.Freeze();
-        return pen;
     }
 
     private static void DrawFallbackMushroom(DrawingContext dc, double x, double y)

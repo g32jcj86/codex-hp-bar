@@ -8,3 +8,4 @@ work/
 *.user
 *.suo
 src/CodexHpBar/Assets/cat-pig-transparent.png
+.agents/
