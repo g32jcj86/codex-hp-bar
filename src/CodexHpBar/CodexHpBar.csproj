@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\CodexHpBar.Core\CodexHpBar.Core.csproj" />
@@ -28,9 +28,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\mushroom.png" Condition="Exists('Assets\mushroom.png')" />
     <Resource Include="Assets\mushroom.ico" Condition="Exists('Assets\mushroom.ico')" />
-    <Resource Include="Assets\cat-pig.png" Condition="Exists('Assets\cat-pig.png')" />
     <Resource Include="Assets\cat-pig.ico" Condition="Exists('Assets\cat-pig.ico')" />
   </ItemGroup>
 

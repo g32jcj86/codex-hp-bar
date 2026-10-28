@@ -1,13 +1,53 @@
-﻿using CodexHpBar.Core;
+using CodexHpBar.Core;
 
 namespace CodexHpBar.Tests;
 
 public sealed class QuotaTests
 {
     [Theory]
-    [InlineData(96, 150, 38)]
-    [InlineData(120, 188, 48)]
-    [InlineData(144, 225, 57)]
+    [InlineData(true, "2027-01-15T08:00:00+00:00", 2)]
+    [InlineData(false, "2027-01-15T08:00:00+00:00", 1)]
+    [InlineData(true, "2020-09-13T12:00:00+00:00", 1)]
+    public void ClaudeParser_ReadsUnexpiredWindows(bool includeShort, string reset, int count)
+    {
+        var shortWindow = includeShort ? $"\"five_hour\":{{\"utilization\":23.5,\"resets_at\":\"{reset}\"}}," : "";
+        var json = "{" + shortWindow + "\"seven_day\":{\"utilization\":41.2,\"resets_at\":\"2027-01-15T08:00:01+00:00\"}}";
+        var snapshot = ClaudeUsageParser.Parse(json, DateTimeOffset.FromUnixTimeSeconds(1700000000));
+        Assert.Equal(count, snapshot.OrderedWindows.Count);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1700000000), snapshot.UpdatedAt);
+        Assert.Equal(10080, snapshot.OrderedWindows[^1].WindowDurationMins);
+        Assert.Equal(59, snapshot.OrderedWindows[^1].RemainingPercent);
+        if (count == 2)
+        {
+            Assert.Equal(300, snapshot.Primary!.WindowDurationMins);
+            Assert.Equal(77, snapshot.Primary.RemainingPercent);
+        }
+    }
+
+    [Theory]
+    [InlineData("{\"five_hour\":null,\"seven_day\":{\"utilization\":6,\"resets_at\":\"2027-01-15T08:00:00Z\"}}", 1)]
+    [InlineData("{\"five_hour\":null,\"seven_day\":null}", 0)]
+    public void ClaudeParser_AllowsNullWindows(string json, int count)
+    {
+        Assert.Equal(count, ClaudeUsageParser.Parse(json, DateTimeOffset.FromUnixTimeSeconds(1700000000)).OrderedWindows.Count);
+    }
+
+    [Theory]
+    [InlineData("not-json")]
+    [InlineData("[]")]
+    [InlineData("{}")]
+    public void ClaudeParser_InvalidJsonIsOffline(string json)
+    {
+        var snapshot = ClaudeUsageParser.Parse(json, DateTimeOffset.UtcNow);
+        Assert.Empty(snapshot.OrderedWindows);
+        Assert.True(snapshot.IsStale);
+        Assert.NotNull(snapshot.Error);
+    }
+
+    [Theory]
+    [InlineData(96, 80, 38)]
+    [InlineData(120, 100, 48)]
+    [InlineData(144, 120, 57)]
     public void TaskbarGeometryScalesForDpi(int dpi, int expectedWidth, int expectedHeight)
     {
         var bounds = TaskbarGeometry.Calculate(new TaskbarPlacement(0, 1700, 1040, 1920, 1080, dpi, true));
@@ -17,9 +57,9 @@ public sealed class QuotaTests
     }
 
     [Theory]
-    [InlineData(96, 1644)]
-    [InlineData(120, 1574)]
-    [InlineData(144, 1506)]
+    [InlineData(96, 1714)]
+    [InlineData(120, 1662)]
+    [InlineData(144, 1611)]
     public void SecondaryTaskbarReservesClockAndStatusArea(int dpi, int expectedLeft)
     {
         var bounds = TaskbarGeometry.Calculate(new TaskbarPlacement(0, 0, 1040, 1920, 1080, dpi, false));
@@ -90,59 +130,32 @@ public sealed class QuotaTests
     }
 
     [Fact]
+    public void Settings_DefaultEnablesBackgroundAndStartup()
+    {
+        var settings = AppSettings.Default;
+        Assert.True(settings.BackgroundMode);
+        Assert.True(settings.StartWithWindows);
+    }
+
+    [Fact]
+    public void Settings_IgnoresLegacyMascotField()
+    {
+        const string json = """
+            {"BackgroundMode":true,"StartWithWindows":true,"Mascot":{"Mode":"AnimatedGif","FilePath":"missing.gif","FramesPerSecond":8}}
+            """;
+        var options = new System.Text.Json.JsonSerializerOptions();
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        var settings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json, options);
+        Assert.Equal(AppSettings.Default, settings);
+        Assert.DoesNotContain("Mascot", System.Text.Json.JsonSerializer.Serialize(settings, options));
+    }
+
+    [Fact]
     public void Settings_NormalizeMakesStartupDependOnBackground()
     {
         var normalized = new AppSettings(false, true).Normalize();
         Assert.True(normalized.BackgroundMode);
         Assert.True(normalized.StartWithWindows);
-        Assert.Equal(MascotAssetMode.BuiltInMushroom, normalized.Mascot!.Mode);
-    }
-
-    [Fact]
-    public void MascotSettings_NormalizeClearsPathForBuiltInAsset()
-    {
-        var normalized = new MascotSettings(MascotAssetMode.BuiltInMushroom, "C:\\temp\\ignored.png", 8).Normalize();
-        Assert.Null(normalized.FilePath);
-    }
-
-    [Theory]
-    [InlineData(0, 1)]
-    [InlineData(8, 8)]
-    [InlineData(60, 30)]
-    public void MascotSettings_NormalizeClampsSpriteSheetFrameRate(int input, int expected)
-    {
-        var normalized = new MascotSettings(MascotAssetMode.SpriteSheet4x4, "C:\\temp\\frames.png", input).Normalize();
-        Assert.Equal(expected, normalized.FramesPerSecond);
-    }
-
-    [Fact]
-    public void MascotAssetStorage_CopiesSelectedFileWithoutRemovingOriginal()
-    {
-        var root = Path.Combine(Path.GetTempPath(), $"CodexHpBarTests-{Guid.NewGuid():N}");
-        var sourceDirectory = Path.Combine(root, "source");
-        var executionDirectory = Path.Combine(root, "application");
-        var sourcePath = Path.Combine(sourceDirectory, "frames.png");
-
-        try
-        {
-            Directory.CreateDirectory(sourceDirectory);
-            File.WriteAllBytes(sourcePath, [1, 2, 3, 4]);
-
-            var settings = new MascotSettings(MascotAssetMode.StaticImage, sourcePath, 8);
-            var copied = MascotAssetStorage.EnsureLocalCopy(settings, executionDirectory);
-
-            Assert.NotEqual(Path.GetFullPath(sourcePath), copied.FilePath);
-            Assert.StartsWith(
-                Path.Combine(Path.GetFullPath(executionDirectory), MascotAssetStorage.DirectoryName) + Path.DirectorySeparatorChar,
-                copied.FilePath!,
-                StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(copied.FilePath!));
-            Assert.True(File.Exists(sourcePath));
-        }
-        finally
-        {
-            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
-        }
     }
 
     [Theory]

@@ -24,6 +24,8 @@ public partial class App : Application
         if (e.Args.Contains("--reset-settings", StringComparer.OrdinalIgnoreCase))
         {
             settingsService.Reset();
+            Shutdown();
+            return;
         }
 
         if (e.Args.Contains("--self-test", StringComparer.OrdinalIgnoreCase))
@@ -33,26 +35,20 @@ public partial class App : Application
         }
 
         var demo = DemoModeExtensions.Parse(e.Args);
-        var settings = demo == DemoMode.None ? settingsService.Load() : new CodexHpBar.Core.AppSettings(true, false);
-        if (settings is null)
+        var settings = new CodexHpBar.Core.AppSettings(true, false).Normalize();
+        if (demo == DemoMode.None)
         {
-            var onboarding = new OnboardingWindow();
-            if (onboarding.ShowDialog() != true)
+            var loaded = settingsService.Load();
+            settings = ((loaded ?? CodexHpBar.Core.AppSettings.Default) with
             {
-                Shutdown();
-                return;
-            }
-
-            settings = onboarding.Settings.Normalize();
-            settingsService.Save(settings);
-            StartupManager.Apply(settings.StartWithWindows);
-        }
-        else
-        {
-            StartupManager.RepairIfNeeded(settings.StartWithWindows);
+                BackgroundMode = true,
+                StartWithWindows = true
+            }).Normalize();
+            if (settings != loaded) settingsService.Save(settings);
+            StartupManager.RepairIfNeeded(true);
         }
 
-        _controller = new AppController(settingsService, settings, demo);
+        _controller = new AppController(settings, demo);
         await _controller.StartAsync();
     }
 

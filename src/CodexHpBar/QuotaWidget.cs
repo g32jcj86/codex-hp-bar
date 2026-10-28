@@ -1,62 +1,19 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using CodexHpBar.Core;
 
 namespace CodexHpBar;
 
 public sealed class QuotaWidget : FrameworkElement
 {
-    private static readonly Brush Coral = FrozenBrush(255, 77, 103);
-    private static readonly Brush Berry = FrozenBrush(217, 70, 239);
+    private static readonly Brush Weekly = FrozenBrush(16, 163, 127);
+    private static readonly Brush ShortTerm = FrozenBrush(125, 211, 184);
+    private static readonly Brush ClaudeWeekly = FrozenBrush(217, 119, 87);
+    private static readonly Brush ClaudeShortTerm = FrozenBrush(242, 184, 160);
     private static readonly Brush Track = FrozenBrush(21, 22, 28);
-    private static readonly Brush FrameBrush = FrozenBrush(218, 222, 232);
     private static readonly Brush Cyan = FrozenBrush(73, 210, 204);
-    private static readonly Pen Frame = FrozenPen(FrameBrush, 1);
-    private static readonly IReadOnlyDictionary<char, string[]> Glyphs = new Dictionary<char, string[]>
-    {
-        ['0'] = ["111", "101", "101", "101", "111"],
-        ['1'] = ["010", "110", "010", "010", "111"],
-        ['2'] = ["111", "001", "111", "100", "111"],
-        ['3'] = ["111", "001", "111", "001", "111"],
-        ['4'] = ["101", "101", "111", "001", "001"],
-        ['5'] = ["111", "100", "111", "001", "111"],
-        ['6'] = ["111", "100", "111", "101", "111"],
-        ['7'] = ["111", "001", "010", "010", "010"],
-        ['8'] = ["111", "101", "111", "101", "111"],
-        ['9'] = ["111", "101", "111", "001", "111"],
-        ['%'] = ["101", "001", "010", "100", "101"],
-        ['-'] = ["000", "000", "111", "000", "000"]
-    };
-    private readonly DispatcherTimer _animationTimer;
-    private readonly DateTimeOffset _animationStart = DateTimeOffset.UtcNow;
-    private readonly MascotAnimation _mascotAnimation = new();
     private QuotaSnapshot _snapshot = QuotaSnapshot.Offline();
-
-    public QuotaWidget()
-    {
-        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
-        _animationTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) =>
-        {
-            if (SystemParameters.ClientAreaAnimation)
-            {
-                _mascotAnimation.Advance(DateTimeOffset.UtcNow);
-                InvalidateVisual();
-            }
-
-            UpdateAnimationTimer();
-        }, Dispatcher);
-        UpdateAnimationTimer();
-        _animationTimer.Start();
-    }
-
-    public void SetMascot(MascotSettings settings)
-    {
-        _mascotAnimation.Apply(settings);
-        UpdateAnimationTimer();
-        InvalidateVisual();
-    }
+    private QuotaSnapshot _claudeSnapshot = QuotaSnapshot.Offline();
 
     public QuotaSnapshot Snapshot
     {
@@ -68,95 +25,83 @@ public sealed class QuotaWidget : FrameworkElement
         }
     }
 
+    public QuotaSnapshot ClaudeSnapshot
+    {
+        get => _claudeSnapshot;
+        set { _claudeSnapshot = value; InvalidateVisual(); }
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
         var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
         dc.PushTransform(new ScaleTransform(1 / scale, 1 / scale));
-        var width = ActualWidth * scale;
         var height = ActualHeight * scale;
-        var bob = _mascotAnimation.AllowsIdleBob && SystemParameters.ClientAreaAnimation
-            ? Math.Round(Math.Sin((DateTimeOffset.UtcNow - _animationStart).TotalSeconds * Math.PI * 2 / 2.8))
-            : 0;
-        var frameOffset = _mascotAnimation.CurrentVerticalOffsetRatio * 30;
-
-        if (_mascotAnimation.CurrentImage is { } mascot)
-        {
-            dc.DrawImage(mascot, new Rect(2, 3 + bob + frameOffset, 30, 30));
-        }
-        else
-        {
-            DrawFallbackMushroom(dc, 2, 4 + bob);
-        }
-        var windows = Snapshot.OrderedWindows;
-        if (windows.Count == 0)
-        {
-            DrawBar(dc, new Rect(35, 9, Math.Max(20, width - 38), 20), null, Brushes.Gray, "--%");
-        }
-        else if (windows.Count == 1)
-        {
-            DrawBar(dc, new Rect(35, 9, Math.Max(20, width - 38), 20), windows[0], Berry, null);
-        }
-        else
-        {
-            DrawBar(dc, new Rect(35, 5, Math.Max(20, width - 38), 12), windows[0], Coral, null);
-            DrawBar(dc, new Rect(35, 21, Math.Max(20, width - 38), 12), windows[1], Berry, null);
-        }
-
-        if (Snapshot.IsStale)
-        {
-            dc.DrawEllipse(Brushes.Gold, null, new Point(width - 5, 5), 2, 2);
-        }
-
-        if (windows.Count > 0 && windows.Min(window => window.RemainingPercent) <= 20)
-        {
-            dc.DrawEllipse(Cyan, null, new Point(31, 7), 2, 3);
-        }
-
+        DrawGauge(dc, new Point(19 * scale, height / 2), ClaudeSnapshot, ClaudeWeekly, ClaudeShortTerm, scale);
+        DrawGauge(dc, new Point(59 * scale, height / 2), Snapshot, Weekly, ShortTerm, scale);
         dc.Pop();
     }
 
-    private static void DrawBar(DrawingContext dc, Rect rect, RateLimitWindow? window, Brush fill, string? fallback)
+    private static void DrawGauge(DrawingContext dc, Point center, QuotaSnapshot snapshot, Brush weekly, Brush shortTerm, double scale)
     {
-        dc.DrawRoundedRectangle(Track, Frame, rect, rect.Height / 2, rect.Height / 2);
+        var windows = snapshot.OrderedWindows;
+        var radius = 16.5 * scale;
+        var thickness = 3 * scale;
+        if (windows.Count == 0)
+            dc.DrawEllipse(null, new Pen(Brushes.Gray, thickness), center, radius, radius);
+        else
+            DrawRing(dc, center, radius, thickness, windows[^1].RemainingPercent, weekly);
+        if (windows.Count == 2)
+            DrawRing(dc, center, radius - 4 * scale, thickness, windows[0].RemainingPercent, shortTerm);
 
-        var percent = window?.RemainingPercent ?? 0;
-        var inner = new Rect(rect.X + 2, rect.Y + 2, Math.Max(0, (rect.Width - 4) * percent / 100d), rect.Height - 4);
-        if (inner.Width > 0)
+        var centerRadius = (windows.Count == 2 ? 10 : 14) * scale;
+        dc.DrawEllipse(Track, null, center, centerRadius, centerRadius);
+        var row = new Rect(center.X - centerRadius, center.Y - centerRadius, centerRadius * 2, centerRadius * 2);
+        if (windows.Count < 2)
+            DrawQuotaText(dc, windows.Count == 0 ? "--" : windows[0].RemainingPercent.ToString(),
+                windows.Count == 0 ? Brushes.Gray : weekly, row, 11, scale);
+        else
         {
-            dc.DrawRoundedRectangle(percent <= 20 ? Brushes.OrangeRed : fill, null, inner, inner.Height / 2, inner.Height / 2);
-            if (SystemParameters.ClientAreaAnimation && inner.Width > 8)
-            {
-                var progress = ((DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() % 3500) / 3500d);
-                var glowX = inner.X + 2 + progress * Math.Max(1, inner.Width - 4);
-                dc.DrawRectangle(Brushes.White, null, new Rect(glowX, inner.Y + 1, 1, Math.Max(1, inner.Height - 2)));
-            }
+            row.Height /= 2;
+            DrawQuotaText(dc, windows[^1].RemainingPercent.ToString(), weekly, row, 8, scale);
+            row.Y += row.Height;
+            DrawQuotaText(dc, windows[0].RemainingPercent.ToString(), shortTerm, row, 8, scale);
         }
-
-        var text = fallback ?? $"{percent}%";
-        DrawPixelText(dc, text, rect);
+        if (snapshot.IsStale)
+            dc.DrawEllipse(Brushes.Gold, null, new Point(center.X + 14 * scale, center.Y - 14 * scale), 2 * scale, 2 * scale);
+        if (windows.Count > 0 && windows.Min(window => window.RemainingPercent) <= 20)
+            dc.DrawEllipse(Cyan, null, new Point(center.X + 14 * scale, center.Y - 9 * scale), 2 * scale, 2 * scale);
+    }
+    private static void DrawRing(DrawingContext dc, Point center, double radius, double thickness, int percent, Brush fill)
+    {
+        dc.DrawEllipse(null, new Pen(Track, thickness), center, radius, radius);
+        if (percent == 0) return;
+        var pen = new Pen(fill, thickness) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        if (percent == 100)
+        {
+            dc.DrawEllipse(null, pen, center, radius, radius);
+            return;
+        }
+        var angle = percent / 100d * Math.PI * 2;
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(new Point(center.X, center.Y - radius), false, false);
+            context.ArcTo(new Point(center.X + Math.Sin(angle) * radius, center.Y - Math.Cos(angle) * radius),
+                new Size(radius, radius), 0, percent > 50, SweepDirection.Clockwise, true, false);
+        }
+        geometry.Freeze();
+        dc.DrawGeometry(null, pen, geometry);
     }
 
-    private static void DrawPixelText(DrawingContext dc, string text, Rect rect)
+    private static void DrawQuotaText(DrawingContext dc, string text, Brush brush, Rect row, double fontSize, double scale)
     {
-        var pixel = rect.Height >= 18 ? 2d : 1d;
-        var glyphWidth = 3 * pixel;
-        var spacing = pixel;
-        var totalWidth = text.Length * glyphWidth + Math.Max(0, text.Length - 1) * spacing;
-        var x = Math.Round(rect.X + (rect.Width - totalWidth) / 2);
-        var y = Math.Round(rect.Y + (rect.Height - 5 * pixel) / 2);
-        foreach (var character in text)
-        {
-            if (Glyphs.TryGetValue(character, out var glyph))
-            {
-                for (var row = 0; row < 5; row++)
-                    for (var column = 0; column < 3; column++)
-                    {
-                        if (glyph[row][column] == '1') dc.DrawRectangle(Brushes.White, null, new Rect(x + column * pixel, y + row * pixel, pixel, pixel));
-                    }
-            }
-            x += glyphWidth + spacing;
-        }
+        // The inverse DPI transform makes one drawing unit one device pixel.
+        // Scale the font size, with PixelsPerDip = 1 to avoid scaling it twice.
+        var formatted = new FormattedText(text, System.Globalization.CultureInfo.CurrentUICulture,
+            FlowDirection.LeftToRight, new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal,
+                FontWeights.Bold, FontStretches.Normal), fontSize * scale, brush, 1);
+        dc.DrawText(formatted, new Point(row.X + (row.Width - formatted.Width) / 2, row.Y + (row.Height - formatted.Height) / 2));
     }
 
     private static Brush FrozenBrush(byte red, byte green, byte blue)
@@ -166,36 +111,6 @@ public sealed class QuotaWidget : FrameworkElement
         return brush;
     }
 
-    private static Pen FrozenPen(Brush brush, double thickness)
-    {
-        var pen = new Pen(brush, thickness);
-        pen.Freeze();
-        return pen;
-    }
-
-    private static void DrawFallbackMushroom(DrawingContext dc, double x, double y)
-    {
-        var outline = new SolidColorBrush(Color.FromRgb(78, 52, 30));
-        var orange = new SolidColorBrush(Color.FromRgb(244, 133, 24));
-        var cream = new SolidColorBrush(Color.FromRgb(255, 246, 221));
-        var brown = new SolidColorBrush(Color.FromRgb(151, 98, 55));
-        const double p = 3;
-        void Pixel(Brush brush, int px, int py, int w = 1, int h = 1) => dc.DrawRectangle(brush, null, new Rect(x + px * p, y + py * p, w * p, h * p));
-
-        Pixel(outline, 1, 2, 9, 4); Pixel(orange, 2, 1, 7, 4);
-        Pixel(orange, 3, 0, 5, 1); Pixel(cream, 2, 5, 7, 5);
-        Pixel(outline, 2, 4, 7, 1); Pixel(outline, 3, 6); Pixel(outline, 7, 6);
-        Pixel(cream, 3, 7, 5, 2); Pixel(outline, 4, 8); Pixel(outline, 6, 8);
-        Pixel(brown, 1, 3); Pixel(brown, 8, 2); Pixel(brown, 5, 1);
-    }
-
-    private void UpdateAnimationTimer()
-    {
-        var minimum = TimeSpan.FromMilliseconds(20);
-        _animationTimer.Interval = _mascotAnimation.NextFrameDelay < minimum
-            ? minimum
-            : _mascotAnimation.NextFrameDelay;
-    }
 }
 
 internal static class TooltipBuilder
@@ -204,7 +119,7 @@ internal static class TooltipBuilder
     {
         if (snapshot.OrderedWindows.Count == 0)
         {
-            return snapshot.Error ?? "目前無法取得 Codex 額度";
+            return snapshot.Error ?? "目前無法取得額度";
         }
 
         return string.Join(Environment.NewLine, snapshot.OrderedWindows.Select(window =>
@@ -214,7 +129,7 @@ internal static class TooltipBuilder
 
     private static string FormatWindow(int minutes) => minutes switch
     {
-        <= 360 => "短期額度",
+        <= 360 => "5 小時額度",
         >= 10000 => "每週額度",
         _ => $"{minutes} 分鐘額度"
     };

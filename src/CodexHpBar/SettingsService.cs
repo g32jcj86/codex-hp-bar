@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.IO;
 using CodexHpBar.Core;
 
@@ -9,8 +8,7 @@ public sealed class SettingsService
 {
     private static readonly JsonSerializerOptions Options = new()
     {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+        WriteIndented = true
     };
     private readonly string _directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexHpBar");
     private string PathName => Path.Combine(_directory, "settings.json");
@@ -21,23 +19,7 @@ public sealed class SettingsService
         {
             if (!File.Exists(PathName)) return null;
 
-            var loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(PathName))?.Normalize();
-            if (loaded is null) return null;
-
-            var prepared = PrepareMascotAsset(loaded);
-            if (prepared != loaded)
-            {
-                try
-                {
-                    Save(prepared);
-                }
-                catch (Exception exception) when (IsStorageException(exception))
-                {
-                    // The copied asset is still usable for this session even if the settings file is read-only.
-                }
-            }
-
-            return prepared;
+            return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(PathName))?.Normalize();
         }
         catch (JsonException)
         {
@@ -47,30 +29,10 @@ public sealed class SettingsService
 
     public void Save(AppSettings settings)
     {
-        settings = PrepareMascotAsset(settings.Normalize());
+        settings = settings.Normalize();
         Directory.CreateDirectory(_directory);
         File.WriteAllText(PathName, JsonSerializer.Serialize(settings, Options));
     }
-
-    private static AppSettings PrepareMascotAsset(AppSettings settings)
-    {
-        var mascot = settings.Mascot!;
-        if (mascot.Mode == MascotAssetMode.BuiltInMushroom) return settings;
-
-        try
-        {
-            return settings with { Mascot = MascotAssetStorage.EnsureLocalCopy(mascot) };
-        }
-        catch (Exception exception) when (IsStorageException(exception))
-        {
-            return settings;
-        }
-    }
-
-    private static bool IsStorageException(Exception exception) => exception is IOException
-        or UnauthorizedAccessException
-        or ArgumentException
-        or NotSupportedException;
 
     public void Reset()
     {

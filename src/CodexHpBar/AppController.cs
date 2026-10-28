@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using CodexHpBar.Core;
@@ -19,7 +19,7 @@ public static class DemoModeExtensions
 
 public sealed class AppController : IAsyncDisposable
 {
-    private readonly SettingsService _settingsService;
+    private readonly ClaudeUsageSource _claudeSource = new();
     private readonly TaskbarLocator _locator = new();
     private readonly DispatcherTimer _watchTimer;
     private readonly DispatcherTimer _syncTimer;
@@ -28,15 +28,15 @@ public sealed class AppController : IAsyncDisposable
     private readonly ForegroundWatcher _foregroundWatcher = new();
     private readonly List<MainWindow> _windows = [];
     private readonly DemoMode _demo;
-    private AppSettings _settings;
+    private readonly AppSettings _settings;
     private AppServerQuotaSource? _quotaSource;
     private QuotaSnapshot _snapshot = QuotaSnapshot.Offline();
+    private QuotaSnapshot _claudeSnapshot = QuotaSnapshot.Offline("尚未收到 Claude Code 額度");
     private bool _refreshing;
     private int _failureCount;
 
-    public AppController(SettingsService settingsService, AppSettings settings, DemoMode demo)
+    public AppController(AppSettings settings, DemoMode demo)
     {
-        _settingsService = settingsService;
         _settings = settings.Normalize();
         _demo = demo;
         _watchTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await RunGuardedAsync(WatchAsync), Application.Current.Dispatcher);
@@ -57,6 +57,7 @@ public sealed class AppController : IAsyncDisposable
         if (_demo != DemoMode.None)
         {
             _snapshot = CreateDemo(_demo);
+            _claudeSnapshot = CreateDemo(_demo, true);
             EnsureWindows();
             _memoryTimer.Start();
             _zOrderTimer.Start();
@@ -95,9 +96,8 @@ public sealed class AppController : IAsyncDisposable
         var taskbars = _locator.LocateAll();
         while (_windows.Count < taskbars.Count)
         {
-            var window = new MainWindow(_settings.Mascot);
+            var window = new MainWindow();
             window.RefreshRequested += async (_, _) => await RefreshAsync();
-            window.SettingsRequested += (_, _) => ShowSettings(window);
             window.ExitRequested += (_, _) => Application.Current.Shutdown();
             _windows.Add(window);
             window.Show();
@@ -116,7 +116,7 @@ public sealed class AppController : IAsyncDisposable
                 _windows[index].Hide();
                 continue;
             }
-            _windows[index].UpdateSnapshot(_snapshot);
+            _windows[index].UpdateSnapshot(_snapshot, _claudeSnapshot);
             if (!_windows[index].IsVisible) _windows[index].Show();
             _windows[index].Place(taskbar);
         }
@@ -133,6 +133,7 @@ public sealed class AppController : IAsyncDisposable
         _refreshing = true;
         try
         {
+            _claudeSnapshot = await _claudeSource.ReadAsync(DateTimeOffset.UtcNow);
             _quotaSource ??= CreateSource();
             _snapshot = await _quotaSource.ReadAsync();
             if (_snapshot.Error is null)
@@ -146,7 +147,7 @@ public sealed class AppController : IAsyncDisposable
                 _syncTimer.Interval = TimeSpan.FromSeconds(delays[Math.Min(_failureCount, delays.Length - 1)]);
                 _failureCount++;
             }
-            foreach (var window in _windows) window.UpdateSnapshot(_snapshot);
+            foreach (var window in _windows) window.UpdateSnapshot(_snapshot, _claudeSnapshot);
         }
         finally
         {
@@ -165,7 +166,7 @@ public sealed class AppController : IAsyncDisposable
             _snapshot = _snapshot.OrderedWindows.Count > 0
                 ? _snapshot with { IsStale = true, Error = exception.Message }
                 : QuotaSnapshot.Offline(exception.Message);
-            foreach (var window in _windows) window.UpdateSnapshot(_snapshot);
+            foreach (var window in _windows) window.UpdateSnapshot(_snapshot, _claudeSnapshot);
         }
     }
 
@@ -188,41 +189,19 @@ public sealed class AppController : IAsyncDisposable
         source.SnapshotChanged += (_, snapshot) => Application.Current.Dispatcher.Invoke(() =>
         {
             _snapshot = snapshot;
-            foreach (var window in _windows) window.UpdateSnapshot(snapshot);
+            foreach (var window in _windows) window.UpdateSnapshot(snapshot, _claudeSnapshot);
         });
         return source;
     }
 
-    private void ShowSettings(MainWindow owner)
-    {
-        var dialog = new OnboardingWindow(_settings)
-        {
-            Title = "Codex HP Bar 設定",
-            Owner = owner,
-            Topmost = true,
-            ShowInTaskbar = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.Loaded += (_, _) =>
-        {
-            dialog.Activate();
-            dialog.Focus();
-        };
-        if (dialog.ShowDialog() != true) return;
-        _settings = dialog.Settings.Normalize();
-        _settingsService.Save(_settings);
-        StartupManager.Apply(_settings.StartWithWindows);
-        foreach (var window in _windows) window.UpdateMascot(_settings.Mascot!);
-    }
-
-    private static QuotaSnapshot CreateDemo(DemoMode mode)
+    private static QuotaSnapshot CreateDemo(DemoMode mode, bool claude = false)
     {
         var reset = DateTimeOffset.UtcNow.AddHours(4).ToUnixTimeSeconds();
         return mode switch
         {
-            DemoMode.Single => new(new RateLimitWindow(17, 10080, reset), null, null, DateTimeOffset.UtcNow),
-            DemoMode.Dual => new(new RateLimitWindow(24, 300, reset), new RateLimitWindow(41, 10080, reset), null, DateTimeOffset.UtcNow),
-            DemoMode.Low => new(new RateLimitWindow(92, 300, reset), new RateLimitWindow(83, 10080, reset), null, DateTimeOffset.UtcNow),
+            DemoMode.Single => new(new RateLimitWindow(claude ? 32 : 17, 10080, reset), null, null, DateTimeOffset.UtcNow),
+            DemoMode.Dual => new(new RateLimitWindow(claude ? 12 : 24, 300, reset), new RateLimitWindow(claude ? 27 : 41, 10080, reset), null, DateTimeOffset.UtcNow),
+            DemoMode.Low => new(new RateLimitWindow(claude ? 86 : 92, 300, reset), new RateLimitWindow(claude ? 95 : 83, 10080, reset), null, DateTimeOffset.UtcNow),
             _ => QuotaSnapshot.Offline("示範離線狀態")
         };
     }
