@@ -1,18 +1,17 @@
-﻿# Codex 菇菇寶貝 HP 額度監測器
+# Claude Code + Codex 額度監測器
 
-Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Codex 剩餘額度顯示成遊戲 HP 血條，並由菇菇寶貝陪伴工作。
+Codex HP Bar 是 Windows 11 工具列上的免安裝 Claude Code + Codex 額度監測器，以兩個品牌色圓環儀表顯示各自的剩餘額度。
 
 ![工具列示意](docs/media/taskbar-demo.png)
 
 ## 功能特色
 
-- 透過 Codex 官方本機 app-server 讀取額度，不使用畫面辨識，也不讀取登入權杖。
-- 以同心圓環同時顯示每週與 5 小時額度；只有每週限制時自動切換成單一圓環。
-- 預設使用菇菇寶貝，也可隨時切換本機靜態圖片、GIF 動圖或 4×4 連續動畫圖片。
+- Codex 透過官方本機 app-server 讀取額度，不讀取登入權杖；Claude Code 讀取本機登入權杖查詢用量 API，兩者皆不使用畫面辨識。
+- Claude Code 與 Codex 各一個同心圓環儀表，同時顯示每週與 5 小時額度，數字寫在圓心；只有每週限制時自動切換成單一圓環。
 - 自動顯示於所有 Windows 工具列，支援多螢幕與每螢幕 DPI。
 - Codex 桌面程式關閉時自動隱藏。
 - 可攜版自帶 .NET Runtime，解壓後直接執行，不需要安裝。
-- 首次啟動才詢問背景待命與 Windows 登入自動啟動，不會預設加入 Startup。
+- 啟動後自動在背景待命並加入 Windows 登入自動啟動，無需設定。
 
 ## 系統需求
 
@@ -24,29 +23,41 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 
 1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.2.2-win-x64-portable.zip`。
 2. 解壓縮後執行 `CodexHpBar.exe`。
-3. 在首次啟用視窗選擇是否允許背景待命及 Windows 登入自動啟動，再按「套用並啟用」。
+3. 開啟 Codex 桌面程式，工具列即會顯示額度；Codex 關閉時，監測器會在背景待命。
 
-免安裝版本可以放在任何可寫入的位置。若已啟用開機啟動，移動 EXE 後請再次開啟設定，讓程式修復 Startup 捷徑。
+免安裝版本可以放在任何可寫入的位置。移動 EXE 後請執行新位置的程式，Startup 捷徑會自動修復。
 
 ## 第一次啟動會做什麼
 
-兩個選項預設都不勾選：
+啟動後自動在背景待命並加入 Windows 登入自動啟動，無需設定，也不會顯示設定視窗。
 
-- **允許背景待命**：Codex 關閉時血條隱藏，但程式保留在背景，等待下次開啟 Codex。
-- **登入 Windows 時自動啟動**：建立目前使用者的 Startup 捷徑。此選項會同時啟用背景待命。
+- **背景待命**：Codex 關閉時血條隱藏，但程式保留在背景，等待下次開啟 Codex。
+- **登入 Windows 時自動啟動**：自動建立或修復目前使用者的 Startup 捷徑。
 
-只有按下「套用並啟用」後才會儲存設定。設定檔位於 `%LOCALAPPDATA%\CodexHpBar\settings.json`，其中不包含登入資料。
+程式會自動儲存設定。設定檔位於 `%LOCALAPPDATA%\CodexHpBar\settings.json`，其中不包含登入資料。
 
 ## 如何閱讀額度圓環
 
-- 左側是同心圓環，圓心是菇菇寶貝（或你設定的角色圖片）；圓環從 12 點鐘方向順時針填滿剩餘額度。
-- 外圈（OpenAI 綠 `#10A37F`）：每週額度。
-- 內圈（Claude 橘 `#D97757`）：5 小時額度。Codex 沒有回傳 5 小時限制時只顯示外圈。
-- 右側文字以相同顏色標示，例如 `週 45%`、`5h 72%`，深色底在淺色或深色工具列上都看得清楚。
-- 青色圓點：任一額度剩餘 20% 以下。
-- 黃色圓點：資料暫時無法更新，仍顯示五分鐘內最後一次成功資料。
-- 灰色空圈與 `--%`：目前無法取得額度。將滑鼠停在小工具上可查看原因。
+由左到右依序是 **Claude Code**、**Codex** 儀表，以品牌色區分：
 
+| 儀表 | 外圈（每週） | 內圈（5 小時） |
+|---|---|---|
+| Claude Code | Claude 橘 `#D97757` | 淺橘 `#F2B8A0` |
+| Codex | OpenAI 綠 `#10A37F` | 淺綠 `#7DD3B8` |
+
+- 圓環從 12 點鐘方向順時針填滿剩餘額度；沒有 5 小時限制時只顯示外圈。
+- 剩餘百分比直接寫在圓心：只有一圈時顯示一個數字；兩圈時上行是每週、下行是 5 小時，顏色與對應圓環相同。
+- 青色圓點：該儀表任一額度剩餘 20% 以下。
+- 黃色圓點：資料暫時無法更新，仍顯示五分鐘內最後一次成功資料。
+- 灰色空圈與 `--`：目前無法取得額度。將滑鼠停在小工具上可查看原因。
+
+### Claude Code 額度來源
+
+Claude Code 額度透過 `https://api.anthropic.com/api/oauth/usage` 查詢，每 60 秒最多查詢一次，其餘時間沿用上次結果。
+
+程式從 `%USERPROFILE%\.claude\.credentials.json` 讀取 `claudeAiOauth.accessToken` 與 `expiresAt`；若設定 `CLAUDE_CONFIG_DIR`，則改讀該目錄的 `.credentials.json`。權杖只保留於記憶體，只送往 `https://api.anthropic.com`，不寫入記錄或提示文字，也不儲存新的權杖副本。
+
+程式不會使用 refresh token 刷新權杖。若權杖過期，請開啟 Claude Code，讓它自行更新登入資料。HTTP 401／403 會顯示登入已失效；其他更新失敗時，有成功資料就保留並標示為陳舊資料。這是未公開的用量介面，可能隨服務更新而變動，無需設定 status line。
 百分比代表剩餘量，計算方式為 `100 - usedPercent`。提示文字會列出本機時間的重置時刻與最後更新時間。
 
 ## 操作與設定
@@ -54,23 +65,9 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 在血條上按滑鼠右鍵：
 
 - **立即更新**：立刻重新讀取額度。
-- **設定**：調整背景待命與開機啟動。
 - **關閉監測器**：關閉所有螢幕上的血條與背景程序。
 
-### 更換角色圖片
-
-在設定視窗的「工具列角色圖片」選擇模式，套用後所有螢幕會立即更新：
-
-- **內建菇菇寶貝**：使用專案內建的透明 PNG。
-- **靜態圖片**：接受 PNG、JPG、BMP、ICO，固定顯示單張圖片。
-- **GIF 動圖**：接受 GIF，依 GIF 的影格延遲循環播放；只有一張影格時視為靜態圖。
-- **4×4 連續動畫圖片**：接受 PNG、JPG、BMP，必須無間距等分成 4 欄×4 列，共 16 格。
-
-4×4 圖片採遊戲常見的 sprite sheet 規則：影格尺寸必須完全相同，從左至右、由上至下編號 0–15，播完後回到第 0 格循環；播放速度可設定 1–30 FPS，預設 8 FPS。4×4 模式不會疊加程式額外的週期性上下浮動；使用透明背景 PNG 時，程式會依各格可見像素的共同底線自動對齊，避免透明留白差異造成跳動。透明背景 PNG 最適合工具列顯示，圖片檔上限為 20 MB、最長邊不可超過 4096 像素。
-
-角色圖片設定會儲存在 `%LOCALAPPDATA%\CodexHpBar\settings.json`。選擇外部圖片後，程式會先複製到執行檔旁的 `MascotAssets` 資料夾，設定檔只記錄複製後的路徑；原始檔案不會被刪除，也不會上傳或執行圖片內容。
-
-若要重新顯示首次啟用畫面：
+程式關閉後，可用下列命令清除設定與 Startup 捷徑；清除後程式會結束。下次正常啟動仍會自動啟用背景待命並重建捷徑：
 
 ```powershell
 .\CodexHpBar.exe --reset-settings
@@ -81,7 +78,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。它把 Cod
 | 參數 | 說明 |
 | --- | --- |
 | `--self-test` | 檢查 Codex app-server、額度讀取、工具列與 DPI，成功時回傳結束碼 `0`。 |
-| `--reset-settings` | 清除設定與 Startup 捷徑，重新進入首次啟用流程。 |
+| `--reset-settings` | 清除設定與 Startup 捷徑後結束；下次正常啟動會重新建立預設設定與捷徑。 |
 | `--demo single` | 顯示單一圓環（僅每週額度）示範資料。 |
 | `--demo dual` | 顯示雙圓環（每週 + 5 小時）示範資料。 |
 | `--demo low` | 顯示低額度狀態。 |
@@ -100,10 +97,10 @@ Get-Content .\SHA256SUMS.txt
 
 ## 隱私與安全
 
-- 程式只啟動本機 `codex app-server --stdio` 並呼叫 `account/rateLimits/read`。
+- Codex 額度透過本機 `codex app-server --stdio` 的 `account/rateLimits/read` 取得；Claude Code 額度透過 Anthropic 用量 API 查詢。
 - 程式不讀取 `auth.json`、不記錄 Email、不開放網路連接埠。
 - app-server 使用既有 Codex 登入狀態與官方服務通訊。
-- 設定檔只包含背景待命與開機啟動兩個布林值。
+- 設定檔包含背景待命與開機啟動設定。
 
 安全問題請參閱 [安全政策](SECURITY.md)。
 
@@ -145,4 +142,4 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## 授權
 
-本專案使用 [MIT License](LICENSE)。菇菇寶貝素材由使用者提供，僅由本機程式載入顯示。
+本專案使用 [MIT License](LICENSE)。

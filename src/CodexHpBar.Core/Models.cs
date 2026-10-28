@@ -1,4 +1,4 @@
-﻿namespace CodexHpBar.Core;
+namespace CodexHpBar.Core;
 
 public sealed record RateLimitWindow(double UsedPercent, int WindowDurationMins, long ResetsAt)
 {
@@ -27,43 +27,16 @@ public sealed record QuotaSnapshot(
         new(null, null, null, DateTimeOffset.UtcNow, true, error);
 }
 
-public enum MascotAssetMode
+public sealed record AppSettings(bool BackgroundMode, bool StartWithWindows)
 {
-    BuiltInMushroom,
-    StaticImage,
-    AnimatedGif,
-    SpriteSheet4x4
-}
-
-public sealed record MascotSettings(
-    MascotAssetMode Mode,
-    string? FilePath,
-    int FramesPerSecond)
-{
-    public MascotSettings Normalize()
-    {
-        var fallback = new MascotSettings(MascotAssetMode.BuiltInMushroom, null, 8);
-        var mode = Enum.IsDefined(typeof(MascotAssetMode), Mode) ? Mode : fallback.Mode;
-        var path = string.IsNullOrWhiteSpace(FilePath) ? null : FilePath.Trim();
-        var framesPerSecond = Math.Clamp(FramesPerSecond, 1, 30);
-        if (mode == MascotAssetMode.BuiltInMushroom) path = null;
-        return this with { Mode = mode, FilePath = path, FramesPerSecond = framesPerSecond };
-    }
-}
-
-public sealed record AppSettings(bool BackgroundMode, bool StartWithWindows, MascotSettings? Mascot = null)
-{
-    public static AppSettings Default { get; } = new(false, false,
-        new MascotSettings(MascotAssetMode.BuiltInMushroom, null, 8));
+    public static AppSettings Default { get; } = new(true, true);
 
     public AppSettings Normalize()
     {
-        var mascot = (Mascot ?? new MascotSettings(MascotAssetMode.BuiltInMushroom, null, 8)).Normalize();
         var backgroundMode = StartWithWindows && !BackgroundMode ? true : BackgroundMode;
-        return this with { BackgroundMode = backgroundMode, Mascot = mascot };
+        return this with { BackgroundMode = backgroundMode };
     }
 }
-
 public sealed record TaskbarPlacement(nint Handle, int Left, int Top, int Right, int Bottom, int Dpi, bool HasTray)
 {
     public double Scale => Dpi / 96d;
@@ -78,7 +51,7 @@ public static class TaskbarGeometry
     public static OverlayBounds Calculate(TaskbarPlacement taskbar)
     {
         var scale = taskbar.Scale;
-        var width = (int)Math.Round(150 * scale);
+        var width = (int)Math.Round(80 * scale);
         var height = (int)Math.Round(38 * scale);
         var gap = (int)Math.Round(6 * scale);
         var statusArea = taskbar.HasTray ? 0 : (int)Math.Round(SecondaryStatusAreaWidth * scale);

@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,26 +17,29 @@ public partial class MainWindow : Window
     private const uint SwpNosize = 0x0001;
     private const uint SwpNomove = 0x0002;
     private ContextMenu? _activeMenu;
+    private readonly ToolTip _quotaToolTip = new();
+    private nint _toolTipHandle;
 
     public event EventHandler? RefreshRequested;
-    public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
 
-    public MainWindow(MascotSettings? mascot = null)
+    public MainWindow()
     {
         InitializeComponent();
-        if (mascot is not null) Widget.SetMascot(mascot);
+        ToolTip = _quotaToolTip;
+        _quotaToolTip.Opened += (_, _) =>
+            _toolTipHandle = (PresentationSource.FromVisual(_quotaToolTip) as HwndSource)?.Handle ?? 0;
+        _quotaToolTip.Closed += (_, _) => _toolTipHandle = 0;
         SourceInitialized += (_, _) => ApplyWindowStyles();
         PreviewMouseRightButtonUp += OnRightClick;
     }
 
-    public void UpdateSnapshot(QuotaSnapshot snapshot)
+    public void UpdateSnapshot(QuotaSnapshot snapshot, QuotaSnapshot claude)
     {
         Widget.Snapshot = snapshot;
-        ToolTip = TooltipBuilder.Build(snapshot);
+        Widget.ClaudeSnapshot = claude;
+        _quotaToolTip.Content = $"Claude Code{Environment.NewLine}{TooltipBuilder.Build(claude)}{Environment.NewLine}{Environment.NewLine}Codex{Environment.NewLine}{TooltipBuilder.Build(snapshot)}";
     }
-
-    public void UpdateMascot(MascotSettings settings) => Widget.SetMascot(settings);
 
     public void Place(TaskbarPlacement taskbar)
     {
@@ -49,6 +52,9 @@ public partial class MainWindow : Window
         if (!IsVisible) return;
         _ = SetWindowPos(new WindowInteropHelper(this).Handle, new nint(-1), 0, 0, 0, 0,
             SwpNoactivate | SwpNosize | SwpNomove);
+        if (_toolTipHandle != 0)
+            _ = SetWindowPos(_toolTipHandle, new nint(-1), 0, 0, 0, 0,
+                SwpNoactivate | SwpNosize | SwpNomove);
     }
 
     private void ApplyWindowStyles()
@@ -62,7 +68,6 @@ public partial class MainWindow : Window
         SetNoActivate(false);
         var menu = new ContextMenu { StaysOpen = false };
         menu.Items.Add(CreateItem("立即更新", () => RefreshRequested?.Invoke(this, EventArgs.Empty)));
-        menu.Items.Add(CreateItem("設定", () => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Separator());
         menu.Items.Add(CreateItem("關閉監測器", () => ExitRequested?.Invoke(this, EventArgs.Empty)));
         menu.PlacementTarget = Widget;

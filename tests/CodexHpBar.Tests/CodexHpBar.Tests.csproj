@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodexHpBar.Core\CodexHpBar.Core.csproj" />
+    <Compile Include="..\..\src\CodexHpBar\ClaudeUsageSource.cs" Link="ClaudeUsageSource.cs" />
   </ItemGroup>
 
 </Project>
