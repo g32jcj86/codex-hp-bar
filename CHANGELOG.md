@@ -12,6 +12,7 @@
 - 額度改為 Claude Code（橘色系）與 Codex（綠色系）兩個同心圓環儀表：外圈為每週額度、內圈為 5 小時額度，只有每週限制時只顯示單一圓環；剩餘百分比寫在圓心。
 - Claude Code 額度改用 Anthropic 用量 API，每 60 秒最多查詢一次；讀取本機登入權杖但不刷新或記錄，移除 status line 快取方案。
 - Claude Code 權杖過期時，自動在背景執行 `claude auth status` 讓 Claude Code CLI 刷新登入資料，不再需要手動開啟 Claude Code。每次嘗試記錄於 `claude-refresh.log`。
+- 不再依 Codex 桌面程式是否開啟而隱藏，工具列小工具常駐顯示並持續更新兩組額度。
 - 修正工具列小工具持續置頂時遮住自身提示視窗的問題。
 - 工具列小工具寬度由 150 縮為 118 DIP。
 

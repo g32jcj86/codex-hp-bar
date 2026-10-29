@@ -9,14 +9,14 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。左邊的�
 - Codex 透過官方本機 app-server 讀取額度，不讀取登入權杖；Claude Code 讀取本機登入權杖查詢用量 API，兩者皆不使用畫面辨識。
 - Claude Code 與 Codex 各一個同心圓環儀表，同時顯示每週與 5 小時額度，數字寫在圓心；只有每週限制時自動切換成單一圓環。
 - 自動顯示於所有 Windows 工具列，支援多螢幕與每螢幕 DPI。
-- Codex 桌面程式關閉時自動隱藏。
+- 不需開著 Codex 桌面程式，常駐工具列持續顯示兩組額度。
 - 可攜版自帶 .NET Runtime，解壓後直接執行，不需要安裝。
 - 啟動後自動在背景待命並加入 Windows 登入自動啟動，無需設定。
 
 ## 系統需求
 
 - Windows 11 x64。
-- 已安裝並登入 Codex 桌面應用程式。
+- 已安裝並登入 Codex 桌面應用程式（只需安裝，額度透過其內建的 `codex app-server` 讀取，不必開著）。
 - 若要顯示 Claude Code 額度：已用 Claude Pro／Max 帳號登入 Claude Code（桌面 app 或 CLI 皆可）。未登入時 Claude Code 儀表顯示灰圈。
 - 若從原始碼建置，需要 .NET 10 SDK。
 
@@ -24,7 +24,7 @@ Codex HP Bar 是 Windows 11 工具列上的免安裝額度監測器。左邊的�
 
 1. 從 [Releases](https://github.com/g32jcj86/codex-hp-bar/releases) 下載 `CodexHpBar-v0.2.2-win-x64-portable.zip`。
 2. 解壓縮後執行 `CodexHpBar.exe`。
-3. 開啟 Codex 桌面程式，工具列即會顯示額度；Codex 關閉時，監測器會在背景待命。
+3. 啟動後工具列即會顯示額度，不需開啟 Codex 桌面程式。
 
 免安裝版本可以放在任何可寫入的位置。移動 EXE 後請執行新位置的程式，Startup 捷徑會自動修復。
 
@@ -132,7 +132,7 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 ## 已知限制
 
-- 僅偵測 Codex Windows 桌面應用程式，不會因 CLI 或 IDE 擴充套件而顯示；Codex 桌面程式關閉時，Claude Code 儀表也會一起隱藏。
+- Codex 額度需要 Codex Windows 桌面應用程式安裝於 `%LOCALAPPDATA%\OpenAI\Codex\bin` 的 `codex.exe`。
 - Claude Code 額度使用未公開的用量介面，Anthropic 變更格式時可能需要更新本程式。
 - Windows 11 沒有提供一般程式真正嵌入既有工具列的正式 API，因此使用不修改 Explorer 的透明覆蓋視窗。
 - Codex app-server 通訊協定更新時，可能需要更新本程式。

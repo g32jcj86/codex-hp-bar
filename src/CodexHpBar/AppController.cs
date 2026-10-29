@@ -73,19 +73,6 @@ public sealed class AppController : IAsyncDisposable
 
     private async Task WatchAsync()
     {
-        if (!CodexDetector.IsDesktopAppRunning())
-        {
-            await FadeOutWindowsAsync();
-            _syncTimer.Stop();
-            if (_quotaSource is not null)
-            {
-                await _quotaSource.DisposeAsync();
-                _quotaSource = null;
-            }
-            if (!_settings.BackgroundMode) Application.Current.Shutdown();
-            return;
-        }
-
         EnsureWindows();
         if (!_syncTimer.IsEnabled) _syncTimer.Start();
         if (_quotaSource is null) await RefreshAsync();
@@ -167,19 +154,6 @@ public sealed class AppController : IAsyncDisposable
                 ? _snapshot with { IsStale = true, Error = exception.Message }
                 : QuotaSnapshot.Offline(exception.Message);
             foreach (var window in _windows) window.UpdateSnapshot(_snapshot, _claudeSnapshot);
-        }
-    }
-
-    private async Task FadeOutWindowsAsync()
-    {
-        var visible = _windows.Where(window => window.IsVisible).ToArray();
-        if (visible.Length == 0) return;
-        foreach (var window in visible) window.Opacity = 0;
-        await Task.Delay(TimeSpan.FromMilliseconds(200));
-        foreach (var window in visible)
-        {
-            window.Hide();
-            window.Opacity = 1;
         }
     }
 
