@@ -43,8 +43,12 @@ public sealed class ClaudeUsageSource
             if (credentials is null && error == ClaudeCredentials.ExpiredError && now >= _nextRefresh)
             {
                 _nextRefresh = now.AddMinutes(10);
-                await RefreshWithClaudeCliAsync();
+                var result = await RefreshWithClaudeCliAsync();
                 credentials = ClaudeCredentials.Parse(await File.ReadAllTextAsync(_credentialsPath), now, out error);
+                var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexHpBar");
+                Directory.CreateDirectory(logDirectory);
+                await File.AppendAllTextAsync(Path.Combine(logDirectory, "claude-refresh.log"),
+                    $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {result} refreshed={credentials is not null}{Environment.NewLine}");
             }
             if (credentials is null) return _snapshot = QuotaSnapshot.Offline(error);
 
@@ -62,7 +66,7 @@ public sealed class ClaudeUsageSource
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-            or HttpRequestException or OperationCanceledException or FormatException or Win32Exception)
+            or HttpRequestException or OperationCanceledException or FormatException)
         {
             // Keep all request/credential details out of user-visible errors.
         }
@@ -73,25 +77,44 @@ public sealed class ClaudeUsageSource
     }
 
     // Let Claude Code refresh its own login: using the refresh token here would rotate it away from Claude Code.
-    private static async Task RefreshWithClaudeCliAsync()
+    // Returns a one-line summary for claude-refresh.log; stdout holds the account email, so only loggedIn is kept.
+    private static async Task<string> RefreshWithClaudeCliAsync()
     {
         var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "claude.exe");
-        using var process = Process.Start(new ProcessStartInfo(File.Exists(installed) ? installed : "claude", "auth status")
-        {
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        });
-        if (process is null) return;
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var fileName = File.Exists(installed) ? installed : "claude";
+        Process? process;
         try
         {
-            await process.WaitForExitAsync(timeout.Token);
+            process = Process.Start(new ProcessStartInfo(fileName, "auth status")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
         }
-        catch (OperationCanceledException)
+        catch (Win32Exception exception)
         {
-            process.Kill(true);
+            return $"start-failed file={fileName} error={exception.Message}";
+        }
+        if (process is null) return $"start-failed file={fileName}";
+
+        using (process)
+        {
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(true);
+                return $"timeout file={fileName}";
+            }
+            var error = (await stderr).ReplaceLineEndings(" ").Trim();
+            return $"exit={process.ExitCode} file={fileName} loggedIn={(await stdout).Contains("\"loggedIn\": true")} stderr={(error.Length > 300 ? error[..300] : error)}";
         }
     }
 }
