@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using CodexHpBar.Core;
+using Microsoft.Win32;
 
 namespace CodexHpBar;
 
@@ -11,9 +12,35 @@ public sealed class QuotaWidget : FrameworkElement
     private static readonly Brush ClaudeWeekly = FrozenBrush(217, 119, 87);
     private static readonly Brush ClaudeShortTerm = FrozenBrush(242, 184, 160);
     private static readonly Brush Track = FrozenBrush(21, 22, 28);
+    private static readonly Brush LightThemeBorder = FrozenBrush(70, 70, 70);
+    private static readonly Brush DarkThemeBorder = FrozenBrush(200, 200, 200);
+    private Brush _border = DarkThemeBorder;
     private static readonly Brush Cyan = FrozenBrush(73, 210, 204);
     private QuotaSnapshot _snapshot = QuotaSnapshot.Offline();
     private QuotaSnapshot _claudeSnapshot = QuotaSnapshot.Offline();
+
+    public QuotaWidget()
+    {
+        Loaded += (_, _) =>
+        {
+            UpdateTheme();
+            SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+        };
+        Unloaded += (_, _) => SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+    }
+
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        Dispatcher.InvokeAsync(UpdateTheme);
+    }
+
+    private void UpdateTheme()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        _border = key?.GetValue("SystemUsesLightTheme") is int value && value == 1
+            ? LightThemeBorder : DarkThemeBorder;
+        InvalidateVisual();
+    }
 
     public QuotaSnapshot Snapshot
     {
@@ -42,8 +69,10 @@ public sealed class QuotaWidget : FrameworkElement
         dc.Pop();
     }
 
-    private static void DrawGauge(DrawingContext dc, Point center, QuotaSnapshot snapshot, Brush weekly, Brush shortTerm, double scale)
+    private void DrawGauge(DrawingContext dc, Point center, QuotaSnapshot snapshot, Brush weekly, Brush shortTerm, double scale)
     {
+        dc.DrawEllipse(Track, null, center, 18 * scale, 18 * scale);
+        dc.DrawEllipse(null, new Pen(_border, scale), center, 18.5 * scale, 18.5 * scale);
         var windows = snapshot.OrderedWindows;
         var radius = 16.5 * scale;
         var thickness = 3 * scale;
