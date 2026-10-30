@@ -77,8 +77,7 @@ public sealed class ClaudeUsageSource
     }
 
     // Let Claude Code refresh its own login: using the refresh token here would rotate it away from Claude Code.
-    // "auth status" never refreshes; "-p /cost" runs locally without a model call but needs a valid token, so it refreshes first.
-    // Returns a one-line summary for claude-refresh.log; stdout is drained but not logged.
+    // Returns a one-line summary for claude-refresh.log; stdout holds the account email, so only loggedIn is kept.
     private static async Task<string> RefreshWithClaudeCliAsync()
     {
         var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "claude.exe");
@@ -86,14 +85,17 @@ public sealed class ClaudeUsageSource
         Process? process;
         try
         {
-            process = Process.Start(new ProcessStartInfo(fileName, "-p /cost")
+            var startInfo = new ProcessStartInfo(fileName, "auth status")
             {
-                WorkingDirectory = Path.GetTempPath(),
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
-            });
+            };
+            // Measured 2026-10-30 from a clean environment: without an entrypoint, `auth status` reports loggedIn
+            // but never refreshes an expired token; with CLAUDE_CODE_ENTRYPOINT set it refreshes.
+            startInfo.Environment["CLAUDE_CODE_ENTRYPOINT"] = "claude-desktop";
+            process = Process.Start(startInfo);
         }
         catch (Win32Exception exception)
         {
@@ -115,9 +117,8 @@ public sealed class ClaudeUsageSource
                 process.Kill(true);
                 return $"timeout file={fileName}";
             }
-            await stdout;
             var error = (await stderr).ReplaceLineEndings(" ").Trim();
-            return $"exit={process.ExitCode} file={fileName} stderr={(error.Length > 300 ? error[..300] : error)}";
+            return $"exit={process.ExitCode} file={fileName} loggedIn={(await stdout).Contains("\"loggedIn\": true")} stderr={(error.Length > 300 ? error[..300] : error)}";
         }
     }
 }
