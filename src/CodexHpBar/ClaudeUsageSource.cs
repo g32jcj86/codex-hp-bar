@@ -77,7 +77,8 @@ public sealed class ClaudeUsageSource
     }
 
     // Let Claude Code refresh its own login: using the refresh token here would rotate it away from Claude Code.
-    // Returns a one-line summary for claude-refresh.log; stdout holds the account email, so only loggedIn is kept.
+    // "auth status" never refreshes; "-p /cost" runs locally without a model call but needs a valid token, so it refreshes first.
+    // Returns a one-line summary for claude-refresh.log; stdout is drained but not logged.
     private static async Task<string> RefreshWithClaudeCliAsync()
     {
         var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "claude.exe");
@@ -85,8 +86,9 @@ public sealed class ClaudeUsageSource
         Process? process;
         try
         {
-            process = Process.Start(new ProcessStartInfo(fileName, "auth status")
+            process = Process.Start(new ProcessStartInfo(fileName, "-p /cost")
             {
+                WorkingDirectory = Path.GetTempPath(),
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -113,8 +115,9 @@ public sealed class ClaudeUsageSource
                 process.Kill(true);
                 return $"timeout file={fileName}";
             }
+            await stdout;
             var error = (await stderr).ReplaceLineEndings(" ").Trim();
-            return $"exit={process.ExitCode} file={fileName} loggedIn={(await stdout).Contains("\"loggedIn\": true")} stderr={(error.Length > 300 ? error[..300] : error)}";
+            return $"exit={process.ExitCode} file={fileName} stderr={(error.Length > 300 ? error[..300] : error)}";
         }
     }
 }

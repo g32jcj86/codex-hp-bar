@@ -62,7 +62,7 @@ Claude Code 額度透過 `https://api.anthropic.com/api/oauth/usage` 查詢，�
 
 程式從 `%USERPROFILE%\.claude\.credentials.json` 讀取 `claudeAiOauth.accessToken` 與 `expiresAt`；若設定 `CLAUDE_CONFIG_DIR`，則改讀該目錄的 `.credentials.json`。權杖只保留於記憶體，只送往 `https://api.anthropic.com`，不寫入記錄或提示文字，也不儲存新的權杖副本。
 
-程式不會自行使用 refresh token。權杖過期時，會在背景隱藏執行 `claude auth status`（每 10 分鐘最多一次），讓 Claude Code CLI 自行刷新登入資料後再重新讀取；若電腦上沒有 Claude Code CLI 或刷新失敗，請開啟 Claude Code 重新登入。每次嘗試都會在 `%LOCALAPPDATA%\CodexHpBar\claude-refresh.log` 記一行（時間、結束代碼、是否刷新成功、stderr 摘要），不含權杖或帳號資訊。HTTP 401／403 會顯示登入已失效；其他更新失敗時，有成功資料就保留並標示為陳舊資料。
+程式不會自行使用 refresh token。權杖過期時，會在背景隱藏執行 `claude -p /cost`（本機指令、不呼叫模型，每 10 分鐘最多一次），讓 Claude Code CLI 自行刷新登入資料後再重新讀取；若電腦上沒有 Claude Code CLI 或刷新失敗，請開啟 Claude Code 重新登入。每次嘗試都會在 `%LOCALAPPDATA%\CodexHpBar\claude-refresh.log` 記一行（時間、結束代碼、stderr 摘要、是否刷新成功），不含權杖或帳號資訊。HTTP 401／403 會顯示登入已失效；其他更新失敗時，有成功資料就保留並標示為陳舊資料。
 
 這是未公開的用量介面，可能隨服務更新而變動。之所以不使用 Claude Code 的 status line，是因為 Claude 桌面 app 不會執行 status line 指令。
 
@@ -106,7 +106,7 @@ Get-Content .\SHA256SUMS.txt
 ## 隱私與安全
 
 - Codex 額度透過本機 `codex app-server --stdio` 的 `account/rateLimits/read` 取得；程式不讀取 Codex 的 `auth.json`，app-server 使用既有 Codex 登入狀態與官方服務通訊。
-- Claude Code 額度需讀取本機 `.claude\.credentials.json` 的存取權杖，只送往 `https://api.anthropic.com` 查詢用量；權杖過期時交由 Claude Code CLI（`claude auth status`）自行刷新；本程式不使用 refresh token、不另存、不記錄權杖。
+- Claude Code 額度需讀取本機 `.claude\.credentials.json` 的存取權杖，只送往 `https://api.anthropic.com` 查詢用量；權杖過期時交由 Claude Code CLI（`claude -p /cost`）自行刷新；本程式不使用 refresh token、不另存、不記錄權杖。
 - 程式不記錄 Email、不開放網路連接埠。
 - 設定檔只包含背景待命與開機啟動設定。
 
