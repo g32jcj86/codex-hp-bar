@@ -17,7 +17,6 @@ public sealed class ClaudeUsageSource
     private readonly HttpClient _client;
     private readonly string _credentialsPath;
     private DateTimeOffset _nextRead;
-    private DateTimeOffset _nextRefresh;
     private QuotaSnapshot _snapshot = QuotaSnapshot.Offline("尚未取得 Claude Code 額度");
 
     public ClaudeUsageSource(HttpClient? client = null, string? credentialsPath = null)
@@ -40,9 +39,9 @@ public sealed class ClaudeUsageSource
                 return _snapshot = QuotaSnapshot.Offline("找不到 Claude Code 登入資料");
 
             var credentials = ClaudeCredentials.Parse(await File.ReadAllTextAsync(_credentialsPath), now, out var error);
-            if (credentials is null && error == ClaudeCredentials.ExpiredError && now >= _nextRefresh)
+            // Measured: the CLI skips the refresh when the token expired under a minute ago, so retry on every read.
+            if (credentials is null && error == ClaudeCredentials.ExpiredError)
             {
-                _nextRefresh = now.AddMinutes(10);
                 var result = await RefreshWithClaudeCliAsync();
                 credentials = ClaudeCredentials.Parse(await File.ReadAllTextAsync(_credentialsPath), now, out error);
                 var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexHpBar");
@@ -50,7 +49,10 @@ public sealed class ClaudeUsageSource
                 await File.AppendAllTextAsync(Path.Combine(logDirectory, "claude-refresh.log"),
                     $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {result} refreshed={credentials is not null}{Environment.NewLine}");
             }
-            if (credentials is null) return _snapshot = QuotaSnapshot.Offline(error);
+            if (credentials is null)
+                return _snapshot = error == ClaudeCredentials.ExpiredError && _snapshot.OrderedWindows.Count > 0
+                    ? _snapshot with { IsStale = true, Error = error }
+                    : QuotaSnapshot.Offline(error);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.anthropic.com/api/oauth/usage");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
